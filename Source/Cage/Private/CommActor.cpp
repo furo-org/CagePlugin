@@ -11,7 +11,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Math/TransformCalculus2D.h" // need this in addition to CoreMinimal.h to compile cereal-UE4.hxx
-#include "cereal-UE4.hxx"
+#include "cerealUE4.hh"
 
 // Cereal serealize rules
 #if 0

@@ -25,7 +25,8 @@ public class CerealUE4 : ModuleRules
 
 		PublicIncludePaths.AddRange(
 			new string[] {
-				ModuleDirectory+"/cereal-UE4include",
+				ModuleDirectory,
+				ModuleDirectory+"/cereal-UE4/include",
 				ModuleDirectory+"/cereal/include"
 				}
 			);

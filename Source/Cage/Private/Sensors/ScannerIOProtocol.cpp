@@ -1,7 +1,7 @@
 ﻿#include "ScannerIOProtocol.h"
 #include "ScanStrategy.h"
 #include "LIDAR.h"
-#include "cereal-UE4.hxx"
+#include "cerealUE4.hh"
 
 void UScannerIOProtocol::BeginPlay()
 {

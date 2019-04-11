@@ -8,7 +8,7 @@
 #include "HideWindowsPlatformTypes.h"
 #include "Types.h"
 // cerial-UE4
-#include "cereal-UE4.hxx"
+#include "cerealUE4.hh"
 
 // Sets default values for this component's properties
 UPosReporter::UPosReporter()
