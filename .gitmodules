@@ -1,0 +1,6 @@
+[submodule "Source/ThirdParty/CerealUE4/cereal-UE4"]
+	path = Source/ThirdParty/CerealUE4/cereal-UE4
+	url = https://github.com/usagi/cereal-UE4.git
+[submodule "Source/ThirdParty/CerealUE4/cereal"]
+	path = Source/ThirdParty/CerealUE4/cereal
+	url = https://github.com/USCiLab/cereal.git

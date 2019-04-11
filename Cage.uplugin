@@ -1,0 +1,33 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "Cage",
+  "Description": "Robotic Vehicle Simulator",
+  "Category": "Other",
+  "CreatedBy": "Tomoaki Yoshida",
+  "CreatedByURL": "",
+  "DocsURL": "",
+  "MarketplaceURL": "",
+  "SupportURL": "",
+  "CanContainContent": true,
+  "IsBetaVersion": true,
+  "Installed": false,
+  "Modules": [
+    {
+      "Name": "Cage",
+      "Type": "Developer",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "zmq",
+      "Enabled": true
+    },
+    {
+      "Name": "PxArticulationLink",
+      "Enabled": true
+    }
+  ]
+}

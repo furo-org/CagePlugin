@@ -1,0 +1,62 @@
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/StaticMeshActor.h"
+#include "Components/StaticMeshComponent.h"
+#include "ScannerIOProtocol.h"
+#include "ScanStrategy.h"
+#include <random>
+#include "LIDAR.generated.h"
+/**
+ * 
+ */
+UCLASS(ClassGroup = "Sensors", BluePrintable)
+class CAGE_API ALidar : public AStaticMeshActor
+{
+	GENERATED_BODY()
+  /* ---- */
+public:
+  //virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+  virtual void Tick(float deltaTime);
+  virtual void BeginPlay() override;
+  virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+  ALidar();
+
+  virtual void Init();
+
+  virtual void OnConstruction(const FTransform& Transform) override;
+
+  UPROPERTY(EditDefaultsOnly, Category = "Lidar")
+    float MaxRange = 3000;     // range in [cm]
+  UPROPERTY(EditDefaultsOnly, Category = "Lidar")
+    float MinRange = 50;       // effective minimum range in [cm]
+  UPROPERTY(EditDefaultsOnly, Category = "Lidar")
+    float BodyRadius = 5;      // trace starting range in [cm]
+
+  UPROPERTY(EditDefaultsOnly)
+    float StartHAngle = -180.;  // scan start angle [deg]
+  UPROPERTY(EditDefaultsOnly)
+    float EndHAngle = 180.;     // scan end angle [deg]
+  UPROPERTY(EditDefaultsOnly)
+    float StepHAngle = 0.5;    // horizontal resolution [deg]
+  UPROPERTY(EditDefaultsOnly)
+    float Rpm = 1200;
+  UPROPERTY(EditDefaultsOnly)
+    float NoiseDistribution = 2; // Noise distribution add to distance response [cm]
+
+protected:
+
+  UPROPERTY(VisibleAnywhere,Category="Lidar")
+  UScannerIOProtocol *IOProtocol=nullptr;
+  UPROPERTY(VisibleAnywhere,Category="Lidar")
+  UScanStrategy *Scanner=nullptr;
+  FVector LastLocation;
+  FRotator LastRotation;
+  float Yaw;
+  float LastMeasureTime;
+  std::random_device Rdev;
+  std::mt19937 Rgen;
+};
