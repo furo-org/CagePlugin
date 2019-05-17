@@ -28,12 +28,13 @@ public class Cage : ModuleRules
 			new string[]
 			{
 				"Core",
-                "Sockets",
-                "Networking",
-                "CerealUE4",
-                "zmq",
+				"Sockets",
+				"Networking",
+				"HeadMountedDisplay",
+				"CerealUE4",
+				"zmq",
 				"zmqLibrary"
-            }
+			}
 			);
 			
 		
