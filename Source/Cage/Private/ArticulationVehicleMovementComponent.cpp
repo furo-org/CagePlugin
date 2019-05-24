@@ -215,10 +215,12 @@ void UArticulationVehicleMovementComponent::RegisterComm()
   FString meta;
   {
     meta = FString::Printf(TEXT(
-      "\"ThreadWidth\":%f,\n"
+      "\"TreadWidth\":%f,\n"
+      "\"ReductionRatio\":%f,\n"
       "\"WheelPerimeterL\":%f,\n"
-      "\"WheelPerimeterR\":%f,\n"),
+      "\"WheelPerimeterR\":%f\n"),
       TreadWidth,
+      WheelReductionRatio,
       WheelL.Perimeter,
       WheelR.Perimeter
     );

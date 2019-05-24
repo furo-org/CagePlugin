@@ -17,6 +17,8 @@ struct FWheelController{
   UPROPERTY(EditDefaultsOnly)
   FName TireName;
 
+  FWheelController(FName tireName) :TireName(tireName),Perimeter(KINDA_SMALL_NUMBER) {}
+  FWheelController() :TireName(NAME_None), Perimeter(KINDA_SMALL_NUMBER) {}
   void setVelocityTargetRpm(float rpm);
   float getCurrentRpm();
 private:
@@ -34,9 +36,9 @@ class CAGE_API UArticulationVehicleMovementComponent : public UMovementComponent
 
 public:
   UPROPERTY(EditDefaultsOnly, Category = "Actuators")
-    FWheelController WheelR;
+    FWheelController WheelR = {FName(TEXT("Wheel-R"))};
   UPROPERTY(EditDefaultsOnly, Category = "Actuators")
-    FWheelController WheelL;
+    FWheelController WheelL = {FName(TEXT("Wheel-L"))};
   UPROPERTY(EditDefaultsOnly, Category = "Actuators")
     float WheelReductionRatio = 15;
   // 1 or -1
