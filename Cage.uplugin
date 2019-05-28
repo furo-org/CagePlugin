@@ -16,7 +16,7 @@
   "Modules": [
     {
       "Name": "Cage",
-      "Type": "Developer",
+      "Type": "Runtime",
       "LoadingPhase": "Default"
     }
   ],

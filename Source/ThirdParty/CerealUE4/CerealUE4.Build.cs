@@ -7,8 +7,9 @@ public class CerealUE4 : ModuleRules
 	public CerealUE4(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
+        bEnableExceptions = true;
 
-		switch (Target.Configuration)
+        switch (Target.Configuration)
 		{
 			case UnrealTargetConfiguration.Debug:
 			case UnrealTargetConfiguration.DebugGame:
