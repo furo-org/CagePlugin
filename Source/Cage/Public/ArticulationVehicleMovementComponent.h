@@ -17,8 +17,8 @@ struct FWheelController{
   UPROPERTY(EditDefaultsOnly)
   FName TireName;
 
-  FWheelController(FName tireName) :TireName(tireName),Perimeter(KINDA_SMALL_NUMBER) {}
-  FWheelController() :TireName(NAME_None), Perimeter(KINDA_SMALL_NUMBER) {}
+  FWheelController(FName tireName) :Perimeter(KINDA_SMALL_NUMBER), TireName(tireName) {}
+  FWheelController() :Perimeter(KINDA_SMALL_NUMBER), TireName(NAME_None) {}
   void setVelocityTargetRpm(float rpm);
   float getCurrentRpm();
 private:

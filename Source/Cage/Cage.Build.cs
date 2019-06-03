@@ -11,7 +11,6 @@ public class Cage : ModuleRules
         bEnableExceptions = true;
         PublicIncludePaths.AddRange(
             new string[] {
-                //Path.Combine(ThirdPartyPath, "nlohmann")
 				// ... add public include paths required here ...
 			}
             );
@@ -32,7 +31,7 @@ public class Cage : ModuleRules
 				"Networking",
 				"HeadMountedDisplay",
 				"CerealUE4",
-				"zmq",
+				"zmque",
 				"zmqLibrary"
 			}
 			);

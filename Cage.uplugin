@@ -22,7 +22,7 @@
   ],
   "Plugins": [
     {
-      "Name": "zmq",
+      "Name": "zmque",
       "Enabled": true
     },
     {
