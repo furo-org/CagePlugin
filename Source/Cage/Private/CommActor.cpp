@@ -123,7 +123,7 @@ public:
   }
   void RegisterEndpoint(FString objectName, FMessageAddress endpoint, FString tag, FString meta=FString()) {
     EndPoints.Emplace(objectName, MakeTuple(endpoint, tag, meta));
-    //UE_LOG(LogTemp, Warning, TEXT("RegisterEndpoint: name=%s, tag=%s meta=%s"), *objectName, *tag, *meta);
+    UE_LOG(LogTemp, Warning, TEXT("RegisterEndpoint: name=%s, tag=%s meta=%s"), *objectName, *tag, *meta);
   }
 };
 

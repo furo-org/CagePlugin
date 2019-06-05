@@ -136,9 +136,24 @@ void UArticulationVehicleMovementComponent::FixupReferences()
     UE_LOG(LogTemp, Warning, TEXT("[%s] FixupReferences R:N=%s Perimeter=%f L:N=%s Perimeter=%f"),
       *(this->GetName()), *(WheelR.Wheel->GetName()), WheelR.Perimeter, *(WheelL.Wheel->GetName()), WheelL.Perimeter);
     IsReady = true;
-  }
-  if (IsReady)
     RegisterComm();
+  }
+  else {
+    UE_LOG(LogTemp, Warning, TEXT("Is not Ready"));
+    if (!WheelR.Wheel) {
+      UE_LOG(LogTemp, Warning, TEXT("WheelR.Wheel==nullptr"));
+    }
+    else if (!WheelL.Wheel) {
+      UE_LOG(LogTemp, Warning, TEXT("WheelL.Wheel==nullptr"));
+    }
+    else if (!WheelR.Wheel->IsStarted) {
+      UE_LOG(LogTemp, Warning, TEXT("WheelR.Wheel->IsStarted!=true"));
+    }
+    else if (!WheelL.Wheel->IsStarted) {
+      UE_LOG(LogTemp, Warning, TEXT("WheelL.Wheel->IsStarted!=true"));
+    }
+    GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UArticulationVehicleMovementComponent::FixupReferences);
+  }
 }
 
 UArticulationLinkComponent * UArticulationVehicleMovementComponent::FindNamedArticulationLinkComponent(FName name)
@@ -206,8 +221,6 @@ void UArticulationVehicleMovementComponent::BeginPlay()
   RefRpmLeft = 0;
   RefRpmRight = 0;
   FixupReferences();
-  if (!IsReady)
-    GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UArticulationVehicleMovementComponent::FixupReferences);
 }
 
 void UArticulationVehicleMovementComponent::RegisterComm()
