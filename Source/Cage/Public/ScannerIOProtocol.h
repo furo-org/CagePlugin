@@ -1,4 +1,9 @@
-﻿#pragma once
+﻿// Copyright 2018 Tomoaki Yoshida<yoshida@furo.org>
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+ 
+#pragma once
 // Scanner Net API Module
 
 /*
@@ -14,8 +19,7 @@
 #include <array>
 #include "ScannerIOProtocol.generated.h"
 
-UCLASS(ClassGroup = "Sensors", BluePrintable)
-class UScannerIOProtocol : public UActorComponent {
+    UCLASS(ClassGroup = "Sensors", BluePrintable) class UScannerIOProtocol : public UActorComponent {
   GENERATED_BODY()
 
 protected:

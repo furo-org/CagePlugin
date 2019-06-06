@@ -1,4 +1,8 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Copyright 2018 Tomoaki Yoshida<yoshida@furo.org>
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 #include "LIDAR.h"
 #include <Engine/Public/DrawDebugHelpers.h>
 #include <Core/Public/Async/ParallelFor.h>
