@@ -55,6 +55,8 @@ struct FSimpleMessage
   GENERATED_USTRUCT_BODY()
   UPROPERTY(EditAnywhere, Category = "Message")
     FString Message;
+  UPROPERTY(EditAnywhere, Category = "Message")
+    FString PeerAddress;
 };
 
 USTRUCT()

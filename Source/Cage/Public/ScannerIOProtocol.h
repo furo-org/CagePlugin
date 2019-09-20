@@ -38,6 +38,8 @@ public:
 
   virtual void sendPacket() {};
 
+  virtual bool setRemoteIP(const FString &remoteIP) { return false; };
+
   float EndHAngle;     // scan end angle [deg]
   float StartHAngle;     // scan end angle [deg]
 };
@@ -55,8 +57,14 @@ public:
 
   virtual void sendPacket()override ;
 
+  bool setRemoteIP(const FString &remoteIP) override;
+
   UPROPERTY(EditDefaultsOnly)
     int RemotePort = 65432;     // Remote Port Number
+  UPROPERTY(EditDefaultsOnly)
+    FString RemoteIP = "255.255.255.255";
+  UPROPERTY(EditDefaultsOnly)
+    bool ForceBroadcast=false;
   TSharedPtr<FInternetAddr> RemoteAddr;
 };
 

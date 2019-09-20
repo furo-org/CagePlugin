@@ -53,6 +53,8 @@ public:
     float AccelEMACoeff = 0.7;
   UPROPERTY(EditDefaultsOnly, Category = "IMU", meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0"))
     float GyroEMACoeff = 0.9;
+  UPROPERTY(BlueprintReadOnly, Category = "SimVehicle")
+    FString RemoteAddress="255.255.255.255";
 protected:
 	UArticulationVehicleMovementComponent();
 

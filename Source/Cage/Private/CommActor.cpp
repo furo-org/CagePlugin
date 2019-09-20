@@ -304,6 +304,7 @@ Message の構造として期待するもの
             auto *smsg = new FSimpleMessage;
             std::string body(msgbody.data<char>(), msgbody.size());
             smsg->Message = body.c_str();
+            smsg->PeerAddress = FString(msg.gets("Peer-Address"));
             //UE_LOG(LogTemp, Warning, TEXT("ActorMsg: target=%s message=%s"), *target, *smsg->Message);
             Endpoint->Send(smsg, addr);
             resultCode = "OK";

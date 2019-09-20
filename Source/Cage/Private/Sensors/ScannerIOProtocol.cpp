@@ -56,14 +56,25 @@ void UScannerIOProtocolUDP::BeginPlay()
   RemoteAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 
   auto sockName = FString::Printf(TEXT("ScanSocket-%s"), *GetOwner()->GetName());
-  bool bIsValid;
-  RemoteAddr->SetIp(TEXT("255.255.255.255"), bIsValid);
+  setRemoteIP(RemoteIP);
   RemoteAddr->SetPort(RemotePort);
   Socket = FUdpSocketBuilder(sockName)
     .AsReusable()
     .WithSendBufferSize(8192*8)  // default x8
     .WithBroadcast();
 
+}
+bool UScannerIOProtocolUDP::setRemoteIP(const FString &remoteIP)
+{
+  if(ForceBroadcast){
+    RemoteIP = FString("255.255.255.255");
+  }
+  else {
+    RemoteIP = remoteIP;
+  }
+  bool bIsValid;
+  RemoteAddr->SetIp(*RemoteIP, bIsValid);
+  return bIsValid;
 }
 
 void UScannerIOProtocolUDP::EndPlay(const EEndPlayReason::Type EndPlayReason)

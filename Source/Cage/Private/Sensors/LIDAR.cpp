@@ -8,6 +8,8 @@
 #include <Core/Public/Async/ParallelFor.h>
 DECLARE_STATS_GROUP(TEXT("CageSensors"), STATGROUP_CageSensors, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Tick"), STAT_LidarTick, STATGROUP_CageSensors);
+DECLARE_CYCLE_STAT(TEXT("ALidar::Trace"), STAT_LidarTrace, STATGROUP_CageSensors);
+DECLARE_CYCLE_STAT(TEXT("ALidar::Send"), STAT_LidarSend, STATGROUP_CageSensors);
 
 void ALidar::BeginPlay()
 {
@@ -72,6 +74,11 @@ void ALidar::OnConstruction(const FTransform& Transform)
 }
 
 
+void ALidar::SetPeerAddress(const FString &address)
+{
+  IOProtocol->setRemoteIP(address);
+}
+
 void ALidar::Tick(float dt)
 {
   Super::Tick(dt);
@@ -86,7 +93,7 @@ void ALidar::Tick(float dt)
 
   if (Scanner == nullptr)return;
 
-  float dbgLifetime =Scanner->GetFrameInterval();
+  float dbgLifetime = Scanner->GetFrameInterval();
   FRotator currentRotation = GetStaticMeshComponent()->GetSocketRotation(FName("Laser"));
   FVector currentLocation = GetStaticMeshComponent()->GetSocketLocation(FName("Laser"));
 
@@ -119,38 +126,39 @@ void ALidar::Tick(float dt)
   std::normal_distribution<float> rdist(0, NoiseDistribution);
 
   // 計測方位セットに従ってトレース
-  ParallelFor(scanVectors.Num(), [&](int idx) {
-  //for (int idx = 0; idx < scanVectors.Num(); ++idx) {
-    const auto &vec = scanVectors[idx];
-    float factor = vec.Get<1>();
-    scannedVectors[idx] = vec.Get < 0>();
-    timeStamps[idx] = LastMeasureTime + factor * currentMeasureDuration;
-    auto fv = FQuat::Slerp(lastPose, curPose, factor)
-      .RotateVector(vec.Get<0>().RotateVector(FVector(1, 0, 0)));
-    auto pos = LastLocation * (1.f - factor) + currentLocation * factor;
-    auto traceStart = pos + fv * BodyRadius; //MinRange;
-    FVector traceEnd = pos + fv * MaxRange;
-    FHitResult resHit;
-    FCollisionResponseParams resParams;
-    FCollisionQueryParams params;
-    params.bTraceComplex = true;
-    float range = 0;
-    bool res = GetWorld()->LineTraceSingleByChannel(resHit, traceStart, traceEnd, ECC_Visibility, params, resParams);
-    if (res && resHit.Distance > MinRange-BodyRadius) {
-      hitLocations[idx] = resHit.Location;
-      range = (resHit.Distance + BodyRadius + rdist(Rgen)) * 10; // cm -> mm;
-      //rangeSum += (resHit.Location - traceStart).Size();
-      //if (++hit % 150 == 0) {
-        //DrawDebugLine(GetWorld(), traceStart, resHit.Location, FColor(250, 0, 0), false, 0.5*dbgLifetime, 0.f, 0.5f);
-      //}
-      //DrawDebugLine(GetWorld(), resHit.Location, resHit.Location + resHit.ImpactNormal, FColor(250, 0, 250), false, 0.5*dbgLifetime);
-    }
-    scanData[idx] = range;
-  //}  // for
-  }); // ParallelFor
-  for (int idx = 0; idx < scanData.Num(); ++idx) {
-    if (scanData[idx] != 0) {
-      DrawDebugPoint(GetWorld(), hitLocations[idx], 5., FColor(250, 0, 0), false, 0.5*dbgLifetime);
+  {
+    SCOPE_CYCLE_COUNTER(STAT_LidarTrace);
+    ParallelFor(scanVectors.Num(), [&](int idx) {
+      const auto &vec = scanVectors[idx];
+      float factor = vec.Get<1>();
+      scannedVectors[idx] = vec.Get < 0>();
+      timeStamps[idx] = LastMeasureTime + factor * currentMeasureDuration;
+      auto fv = FQuat::Slerp(lastPose, curPose, factor)
+        .RotateVector(vec.Get<0>().RotateVector(FVector(1, 0, 0)));
+      auto pos = LastLocation * (1.f - factor) + currentLocation * factor;
+      auto traceStart = pos + fv * BodyRadius; //MinRange;
+      FVector traceEnd = pos + fv * MaxRange;
+      FHitResult resHit;
+      FCollisionResponseParams resParams;
+      FCollisionQueryParams params;
+      params.bTraceComplex = true;
+      float range = 0;
+      bool res = GetWorld()->LineTraceSingleByChannel(resHit, traceStart, traceEnd, ECC_Visibility, params, resParams);
+      if (res && resHit.Distance > MinRange - BodyRadius) {
+        hitLocations[idx] = resHit.Location;
+        range = (resHit.Distance + BodyRadius + rdist(Rgen)) * 10; // cm -> mm;
+        //rangeSum += (resHit.Location - traceStart).Size();
+        //if (++hit % 150 == 0) {
+          //DrawDebugLine(GetWorld(), traceStart, resHit.Location, FColor(250, 0, 0), false, 0.5*dbgLifetime, 0.f, 0.5f);
+        //}
+        //DrawDebugLine(GetWorld(), resHit.Location, resHit.Location + resHit.ImpactNormal, FColor(250, 0, 250), false, 0.5*dbgLifetime);
+      }
+      scanData[idx] = range;
+      }); // ParallelFor
+    for (int idx = 0; idx < scanData.Num(); ++idx) {
+      if (scanData[idx] != 0) {
+        DrawDebugPoint(GetWorld(), hitLocations[idx], 5., FColor(250, 0, 0), false, 0.5*dbgLifetime);
+      }
     }
   }
 #if 0
@@ -165,9 +173,12 @@ void ALidar::Tick(float dt)
     dbgLifetime);
 #endif
   // 結果を出力器に渡す
-  if (IOProtocol)
-    IOProtocol->pushScan(scanData, scannedVectors, timeStamps);
-  LastRotation = nextPose.Rotator();
-  LastLocation = nextPos;
-  LastMeasureTime = endTime;
+  {
+    SCOPE_CYCLE_COUNTER(STAT_LidarSend);
+    if (IOProtocol)
+      IOProtocol->pushScan(scanData, scannedVectors, timeStamps);
+    LastRotation = nextPose.Rotator();
+    LastLocation = nextPos;
+    LastMeasureTime = endTime;
+  }
 }

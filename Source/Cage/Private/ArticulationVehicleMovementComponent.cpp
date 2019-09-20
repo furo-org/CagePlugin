@@ -199,7 +199,7 @@ void UArticulationVehicleMovementComponent::CommRecv()
       //UE_LOG(LogTemp, Warning, TEXT("RpmCmd R:%f L:%f"), r, l);
       setRPM(l, r);
     }
-
+    RemoteAddress = rcv.PeerAddress;
   }
 }
 

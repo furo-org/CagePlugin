@@ -33,6 +33,9 @@ public:
 
   virtual void OnConstruction(const FTransform& Transform) override;
 
+  UFUNCTION(BlueprintCallable, Category = "Setup")
+    void SetPeerAddress(const FString &address);
+
   UPROPERTY(EditDefaultsOnly, Category = "Lidar")
     float MaxRange = 3000;     // range in [cm]
   UPROPERTY(EditDefaultsOnly, Category = "Lidar")
