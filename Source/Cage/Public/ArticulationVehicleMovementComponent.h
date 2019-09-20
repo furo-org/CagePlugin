@@ -59,7 +59,8 @@ protected:
   void UpdateStatus(float DeltaTime);
   void FixupReferences();
   UArticulationLinkComponent *FindNamedArticulationLinkComponent(FName name);
-  void HandleComm();
+  void CommRecv();
+  void CommSend();
 
   CommEndpointIO<FSimpleMessage> Comm;
 	FTransform PrevTransform;

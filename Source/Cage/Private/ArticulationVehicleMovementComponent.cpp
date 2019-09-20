@@ -7,6 +7,8 @@
 #include "ArticulationLinkComponent.h"
 #include "Engine/Classes/GameFramework/Actor.h"
 #include "Engine/Public/TimerManager.h"
+#include "EngineUtils.h"
+#include "CommActor.h"
 #include<sstream>
 #include<string>
 // cereal-UE4
@@ -51,11 +53,12 @@ void UArticulationVehicleMovementComponent::setRPM(float l, float r)
 void UArticulationVehicleMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-	UpdateStatus(DeltaTime);
+  UpdateStatus(DeltaTime);
 
   if (!ensure(WheelL.Wheel != nullptr))return;
   if (!ensure(WheelR.Wheel != nullptr))return;
+
+  CommRecv();
 
   WheelL.setVelocityTargetRpm(RefRpmLeft);
   WheelR.setVelocityTargetRpm(RefRpmRight);
@@ -63,7 +66,7 @@ void UArticulationVehicleMovementComponent::TickComponent(float DeltaTime, enum 
   CurRpmRight = WheelR.getCurrentRpm()*WheelReductionRatio * RotationDirection;
   //UE_LOG(LogTemp, Warning, TEXT("RefR: %f CurR: %f  RefL: %f CurL: %f"), RefRpmRight, CurRpmRight, RefRpmLeft, CurRpmLeft);
 
-  HandleComm();
+  CommSend();
 #if 0
   UE_LOG(LogTemp, Warning, TEXT("V[Ref:%f Cur:%f] W[Ref:%f Cur:%f] L[Ref:%f Cur:%s] R[Ref:%f Cur:%s]"), 
     RefVel, Vel, RefOmega, YawRate,
@@ -173,23 +176,8 @@ UArticulationLinkComponent * UArticulationVehicleMovementComponent::FindNamedArt
   return nullptr;
 }
 
-void UArticulationVehicleMovementComponent::HandleComm()
+void UArticulationVehicleMovementComponent::CommRecv()
 {
-  FVector loc = GetOwner()->GetActorLocation();
-  FRotator rot = GetOwner()->GetActorRotation();
-
-  FNamedMessage *msg(new FNamedMessage);
-  msg->Message = CerealFromNVP(
-    "Position", loc,
-    "Pose",Pose,
-    "AngVel", RateGyro, //FVector(RollRate, PitchRate, YawRate),
-    "Accel", Accel,
-    "Yaw", rot.Yaw,
-    "LeftRpm", CurRpmLeft,
-    "RightRpm", CurRpmRight);
-  msg->Name = GetOwner()->GetName();
-  Comm.Send(msg);
-
   FSimpleMessage rcv;
   if (Comm.RecvLatest(&rcv)) {
     FString type;
@@ -209,10 +197,28 @@ void UArticulationVehicleMovementComponent::HandleComm()
       ar(cereal::make_nvp("R", r));
       ar(cereal::make_nvp("L", l));
       //UE_LOG(LogTemp, Warning, TEXT("RpmCmd R:%f L:%f"), r, l);
-      setRPM(l,r);
+      setRPM(l, r);
     }
 
   }
+}
+
+void UArticulationVehicleMovementComponent::CommSend()
+{
+  FVector loc = GetOwner()->GetActorLocation();
+  FRotator rot = GetOwner()->GetActorRotation();
+
+  FNamedMessage *msg(new FNamedMessage);
+  msg->Message = CerealFromNVP(
+    "Position", loc,
+    "Pose", Pose,
+    "AngVel", RateGyro, //FVector(RollRate, PitchRate, YawRate),
+    "Accel", Accel,
+    "Yaw", rot.Yaw,
+    "LeftRpm", CurRpmLeft,
+    "RightRpm", CurRpmRight);
+  msg->Name = GetOwner()->GetName();
+  Comm.Send(msg);
 }
 
 void UArticulationVehicleMovementComponent::BeginPlay()
@@ -242,6 +248,11 @@ void UArticulationVehicleMovementComponent::RegisterComm()
     );
   }
   Comm.setup(GetOwner()->GetFName(), "Vehicle", meta);
+
+  for (TActorIterator<ACommActor> commActorItr(GetWorld()); commActorItr; ++commActorItr) {
+    AddTickPrerequisiteActor(*commActorItr);
+    break;
+  }
 }
 
 void UArticulationVehicleMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
