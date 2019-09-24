@@ -8,6 +8,7 @@
 
 #include "Comm/Comm.h"
 #include "GameFramework/MovementComponent.h"
+#include "TickUtils.h"
 #include "ArticulationVehicleMovementComponent.generated.h"
 
 class UArticulationLinkComponent;
@@ -34,7 +35,7 @@ private:
  * 
  */
 UCLASS(meta = (BlueprintSpawnableComponent), ClassGroup = (Custom))
-class CAGE_API UArticulationVehicleMovementComponent : public UMovementComponent
+class CAGE_API UArticulationVehicleMovementComponent : public UMovementComponent, public IPostPhysicsTickable
 {
   GENERATED_BODY()
 
@@ -68,6 +69,7 @@ protected:
 	FTransform PrevTransform;
   FVector PrevVelocity;
   bool IsReady;
+  FTickFunction SecondaryTick;
 
   UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SimVehicle")
     float RefVel = 0;
@@ -111,7 +113,9 @@ public:
     void setRPM(float l, float r); // set motor speed [rpm]. Tire speed=motor speed/wheelReductionRatio.
 
   virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+  virtual void PostPhysicsTick(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void BeginPlay() override;
+  virtual void PostInitProperties() override;
 
   void RegisterComm();
   virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

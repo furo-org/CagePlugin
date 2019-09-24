@@ -30,6 +30,7 @@ float FWheelController::getCurrentRpm()
 
 UArticulationVehicleMovementComponent::UArticulationVehicleMovementComponent()
 {
+  
 }
 
 void UArticulationVehicleMovementComponent::setVW(float v, float w)
@@ -50,10 +51,17 @@ void UArticulationVehicleMovementComponent::setRPM(float l, float r)
   RefRpmLeft = l / WheelReductionRatio * RotationDirection;
 }
 
+void UArticulationVehicleMovementComponent::PostInitProperties()
+{
+  Super::PostInitProperties();
+  if (!IsTemplate() && PostPhysicsTickFunction.bCanEverTick) {
+    IPostPhysicsTickable::EnablePostPhysicsTickHelper(this);
+  }
+}
+
 void UArticulationVehicleMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-  UpdateStatus(DeltaTime);
 
   if (!ensure(WheelL.Wheel != nullptr))return;
   if (!ensure(WheelR.Wheel != nullptr))return;
@@ -66,7 +74,6 @@ void UArticulationVehicleMovementComponent::TickComponent(float DeltaTime, enum 
   CurRpmRight = WheelR.getCurrentRpm()*WheelReductionRatio * RotationDirection;
   //UE_LOG(LogTemp, Warning, TEXT("RefR: %f CurR: %f  RefL: %f CurL: %f"), RefRpmRight, CurRpmRight, RefRpmLeft, CurRpmLeft);
 
-  CommSend();
 #if 0
   UE_LOG(LogTemp, Warning, TEXT("V[Ref:%f Cur:%f] W[Ref:%f Cur:%f] L[Ref:%f Cur:%s] R[Ref:%f Cur:%s]"), 
     RefVel, Vel, RefOmega, YawRate,
@@ -76,6 +83,12 @@ void UArticulationVehicleMovementComponent::TickComponent(float DeltaTime, enum 
     RefRpmRight, CurRpmRight,
     RefRpmLeft, CurRpmLeft);
 #endif
+}
+
+void UArticulationVehicleMovementComponent::PostPhysicsTick(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+{
+  UpdateStatus(DeltaTime);
+  CommSend();
 }
 
 void UArticulationVehicleMovementComponent::UpdateStatus(float DeltaTime)
