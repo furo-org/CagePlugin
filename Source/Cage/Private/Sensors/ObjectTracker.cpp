@@ -40,9 +40,9 @@ void UObjectTracker::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
   int count = 0;
 	// 追跡対象オブジェクトをリストアップ
-  for (FConstPawnIterator pitr = GetWorld()->GetPawnIterator(); pitr; ++pitr)
+  for(APawn* pawn: TActorRange<APawn>(GetWorld()))
   {
-    const TWeakObjectPtr<APawn> pawn = *pitr;
+    if (!pawn->IsInLevel(GetWorld()->GetCurrentLevel()))continue;
     count++;
     bool match = false;
     for (auto &tag : pawn->Tags) {
