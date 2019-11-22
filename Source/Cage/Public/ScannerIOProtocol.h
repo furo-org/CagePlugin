@@ -25,6 +25,7 @@
 
 protected:
   TArray<int> Ranges;
+  TArray<uint8_t> Intensities;
   TArray<float> Yaws;
   bool InRange = false;
   float LastYaw = -180;
@@ -34,7 +35,7 @@ public:
 
   virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) { Super::EndPlay(EndPlayReason); };
 
-  virtual void pushScan(TArray<float> &ranges, TArray<FRotator> &dirs, TArray<float> &timestamps);
+  virtual void pushScan(TArray<float> &ranges, TArray<float> &intensities, TArray<FRotator> &dirs, TArray<float> &timestamps);
 
   virtual void sendPacket() {};
 
@@ -66,6 +67,8 @@ public:
   UPROPERTY(EditDefaultsOnly)
     bool ForceBroadcast=false;
   TSharedPtr<FInternetAddr> RemoteAddr;
+  uint32 BroadcastIP;
+  bool RemoteIsBroadcast = true;
 };
 
 UCLASS(ClassGroup = "Sensors", BluePrintable)
@@ -86,10 +89,12 @@ UCLASS(ClassGroup = "Sensors", BluePrintable)
 class UScannerIOProtocolVelodyne : public UScannerIOProtocolUDP {
   GENERATED_BODY()
 
+  static const int IntensityDRange = 255;
   FBufferArchive Pack;
   size_t NDataBlocks = 0;
 
   TArray<uint16_t> Rangedata;
+  TArray<uint8_t> Intensity;
   uint16_t Azimuth;
   float Timestamp;
 
@@ -100,7 +105,7 @@ public:
 
   void PreparePacket();
 
-  virtual void pushScan(TArray<float> &ranges, TArray<FRotator> &dirs,TArray<float> &timestamps) override;
+  virtual void pushScan(TArray<float> &ranges, TArray<float> &intensities, TArray<FRotator> &dirs,TArray<float> &timestamps) override;
 
   void pushRange(TArray<uint16_t> &rangedata, TArray<float> & ranges, size_t pos);
 

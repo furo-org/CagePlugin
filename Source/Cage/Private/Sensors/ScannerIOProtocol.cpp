@@ -7,6 +7,16 @@
 #include "ScanStrategy.h"
 #include "LIDAR.h"
 #include "cerealUE4.hh"
+#include"Runtime/Core/Public/HAL/IConsoleManager.h"
+
+static TAutoConsoleVariable<int32> CVarBroadcast(
+  TEXT("cage.Lidar.Broadcast"),
+  0,
+  TEXT("Enable broadcasting packets when no destination is specified.\n")
+  TEXT(" 0: Disable broadcast\n")
+  TEXT(" 1: Enable broadcast"),
+  ECVF_RenderThreadSafe
+);
 
 void UScannerIOProtocol::BeginPlay()
 {
@@ -22,7 +32,7 @@ void UScannerIOProtocol::BeginPlay()
   EndHAngle = CastChecked<ALidar>(GetOwner())->EndHAngle;
 }
 
-void UScannerIOProtocol::pushScan(TArray<float> &ranges, TArray<FRotator> &dirs, TArray<float> &timestamps)
+void UScannerIOProtocol::pushScan(TArray<float> &ranges, TArray<float> &intensities, TArray<FRotator> &dirs, TArray<float> &timestamps)
 {
   if (!ensure(Scanner != nullptr)) return;
 
@@ -31,6 +41,7 @@ void UScannerIOProtocol::pushScan(TArray<float> &ranges, TArray<FRotator> &dirs,
   // Yawは上から見て反時計回りに定義されることに注意
   Yaws.Reserve(Yaws.Num() + dirs.Num());
   Ranges.Reserve(Ranges.Num() + ranges.Num());
+  Intensities.Reserve(Intensities.Num() + intensities.Num());
   for (int i = 0, ec = ranges.Num(); i != ec; ++i) {
     bool inRange = dirs[i].Yaw - StartHAngle >= 0 && dirs[i].Yaw - EndHAngle <= 0;
       if ((InRange == true && inRange == false) || (inRange == true && LastYaw > dirs[i].Yaw)) {
@@ -39,10 +50,12 @@ void UScannerIOProtocol::pushScan(TArray<float> &ranges, TArray<FRotator> &dirs,
         sendPacket();
         Yaws.Empty();
         Ranges.Empty();
+        Intensities.Empty();
       }
     if (inRange) {
       Ranges.Emplace(ranges[i]);
       Yaws.Emplace(-dirs[i].Yaw);   // 上から見て時計回りが+となるように向きを反転
+      Intensities.Emplace(intensities[i]);
     }
     InRange = inRange;
     LastYaw = dirs[i].Yaw;
@@ -56,6 +69,12 @@ void UScannerIOProtocolUDP::BeginPlay()
   RemoteAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 
   auto sockName = FString::Printf(TEXT("ScanSocket-%s"), *GetOwner()->GetName());
+
+  // store broadcast ip address
+  bool bIsValid;
+  RemoteAddr->SetIp(TEXT("255.255.255.255"), bIsValid);
+  RemoteAddr->GetIp(BroadcastIP);
+  
   setRemoteIP(RemoteIP);
   RemoteAddr->SetPort(RemotePort);
   Socket = FUdpSocketBuilder(sockName)
@@ -74,6 +93,11 @@ bool UScannerIOProtocolUDP::setRemoteIP(const FString &remoteIP)
   }
   bool bIsValid;
   RemoteAddr->SetIp(*RemoteIP, bIsValid);
+
+  uint32 ipaddr;
+  RemoteAddr->GetIp(ipaddr);
+  RemoteIsBroadcast = (ipaddr == BroadcastIP);
+
   return bIsValid;
 }
 
@@ -102,6 +126,11 @@ void UScannerIOProtocolUDP::sendPacket()
     pack << Yaws[i];
   }
   if (Socket != nullptr) {
+    // check if broadcasting is allowed or not.
+    if (CVarBroadcast.GetValueOnGameThread() == 0 && RemoteIsBroadcast) {
+      return;
+    }
+
     int32 bytesSent;
     Socket->SendTo(pack.GetData(), pack.TotalSize(), bytesSent, *RemoteAddr);
     //UE_LOG(LogTemp, Warning, TEXT("SendUDP:%d  Count:%d"), bytesSent, count);
@@ -139,6 +168,11 @@ void UScannerIOProtocolVelodyne::BeginPlay()
 void UScannerIOProtocolVelodyne::sendPacket()
 {
   if (Socket != nullptr) {
+    // check if broadcasting is allowed or not.
+    if (CVarBroadcast.GetValueOnGameThread() == 0 && RemoteIsBroadcast) {
+      return;
+    }
+
     int32 bytesSent;
     if (Socket->SendTo(Pack.GetData(), Pack.TotalSize(), bytesSent, *RemoteAddr) == false) {
       UE_LOG(LogTemp, Warning, TEXT("SendUDP: bytes sent=%d  size=%d"), bytesSent,Pack.TotalSize());
@@ -154,10 +188,11 @@ void UScannerIOProtocolVelodyne::PreparePacket()
   NDataBlocks = 0;
 }
 
-void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<FRotator> &dirs, TArray<float> &timestamps)
+void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<float> &intensities, TArray<FRotator> &dirs, TArray<float> &timestamps)
 {
   size_t pos = 0;
-  uint8_t  intensity = 200;
+  ensure(ranges.Num() == intensities.Num());
+  //uint8_t  intensity = 200;
   while (ranges.Num()-pos >= 16) {
     if (Rangedata.Num() == 0) {
       float yaw = dirs[pos].Yaw;
@@ -168,6 +203,7 @@ void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<FRotator
     }
     for (int idx = 0; idx < 16; ++idx) {
       Rangedata.Add(ranges[pos + idx]/UnitRange);
+      Intensities.Add(intensities[pos + idx] * IntensityDRange);
     }
     pos += 16;
 
@@ -180,10 +216,11 @@ void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<FRotator
 
     for (size_t p = 0; p < 32; ++p) {
       Pack << Rangedata[p];
-      Pack << intensity;
+      Pack << Intensities[p];
     }
     ++NDataBlocks;
     Rangedata.Empty();
+    Intensities.Empty();
 
     // Packet完成
     if (NDataBlocks >= 12) {
@@ -195,7 +232,7 @@ void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<FRotator
       Pack << model;
       sendPacket();
     }
-    intensity++; // 同一フレームで処理したパケットをintensityを流用してマークする
+    //intensity++; // 同一フレームで処理したパケットをintensityを流用してマークする
   }
 }
 #if 0

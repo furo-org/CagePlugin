@@ -5,11 +5,22 @@
 
 #include "LIDAR.h"
 #include <Engine/Public/DrawDebugHelpers.h>
+#include <Core/Public/Math/UnrealMathUtility.h>
 #include <Core/Public/Async/ParallelFor.h>
 DECLARE_STATS_GROUP(TEXT("CageSensors"), STATGROUP_CageSensors, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Tick"), STAT_LidarTick, STATGROUP_CageSensors);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Trace"), STAT_LidarTrace, STATGROUP_CageSensors);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Send"), STAT_LidarSend, STATGROUP_CageSensors);
+
+static TAutoConsoleVariable<int32> CVarVisualize(
+  TEXT("cage.Lidar.Visualize"),
+  5,
+  TEXT("Visualize lidar reflection points.\n")
+  TEXT(" 0: No points\n")
+  TEXT(" 1: Draw all points.\n")
+  TEXT(" N: Draw every N points.\n"),
+  ECVF_RenderThreadSafe
+);
 
 void ALidar::BeginPlay()
 {
@@ -119,12 +130,13 @@ void ALidar::Tick(float dt)
   TArray<float> scanData;
   TArray<float> timeStamps;
   TArray<FVector> hitLocations;
+  TArray<float> intensities;
   scanData.SetNumUninitialized(scanVectors.Num());
   timeStamps.SetNumUninitialized(scanVectors.Num());
   scannedVectors.SetNumUninitialized(scanVectors.Num());
   hitLocations.SetNumUninitialized(scanVectors.Num());
+  intensities.SetNumUninitialized(scanVectors.Num());
   std::normal_distribution<float> rdist(0, NoiseDistribution);
-
   // 計測方位セットに従ってトレース
   {
     SCOPE_CYCLE_COUNTER(STAT_LidarTrace);
@@ -142,24 +154,40 @@ void ALidar::Tick(float dt)
       FCollisionResponseParams resParams;
       FCollisionQueryParams params;
       params.bTraceComplex = true;
+      params.bReturnPhysicalMaterial = true;
       float range = 0;
+      float intensity = 0;
       bool res = GetWorld()->LineTraceSingleByChannel(resHit, traceStart, traceEnd, ECC_Visibility, params, resParams);
       if (res && resHit.Distance > MinRange - BodyRadius) {
         hitLocations[idx] = resHit.Location;
         range = (resHit.Distance + BodyRadius + rdist(Rgen)) * 10; // cm -> mm;
-        //rangeSum += (resHit.Location - traceStart).Size();
-        //if (++hit % 150 == 0) {
-          //DrawDebugLine(GetWorld(), traceStart, resHit.Location, FColor(250, 0, 0), false, 0.5*dbgLifetime, 0.f, 0.5f);
-        //}
-        //DrawDebugLine(GetWorld(), resHit.Location, resHit.Location + resHit.ImpactNormal, FColor(250, 0, 250), false, 0.5*dbgLifetime);
+        // 正対したら上がる
+        // 距離が離れると下がる
+        // 10%が下限
+        intensity = FMath::Clamp<float>(FVector::DotProduct(resHit.ImpactNormal, -fv)*0.5 +  (0.1 + 0.9 / range), 0., 1.);
+        
+#if 0   // ここで描画する場合にはParallelForをsingle threadにする必要がある
+        if (++hit%5==1)
+        {
+          DrawDebugPoint(GetWorld(), hitLocations[idx], 5., FColor(250 * intensity, 0, 0), false, 0.5*dbgLifetime);
+          DrawDebugLine(GetWorld(), resHit.Location, resHit.Location + resHit.ImpactNormal * 30, FColor(0, 250, 0), false, 0.5*dbgLifetime, 0.f, 0.2f);
+          DrawDebugLine(GetWorld(), resHit.Location, resHit.Location - resHit.Normal * 30, FColor(250, 250, 0), false, 0.5*dbgLifetime, 0.f, 0.2f);
+        }
+#endif
       }
       scanData[idx] = range;
-      }); // ParallelFor
-    for (int idx = 0; idx < scanData.Num(); ++idx) {
-      if (scanData[idx] != 0) {
-        DrawDebugPoint(GetWorld(), hitLocations[idx], 5., FColor(250, 0, 0), false, 0.5*dbgLifetime);
+      intensities[idx] = intensity;
+      }/*, true /*single thread*/); // ParallelFor
+#if 1
+    auto vis = CVarVisualize.GetValueOnGameThread();
+    if (vis) {
+      for (int idx = 0; idx < scanData.Num(); ++idx) {
+        if (scanData[idx] != 0 && idx % vis == 0) {
+          DrawDebugPoint(GetWorld(), hitLocations[idx], 5., FColor(250*intensities[idx], 0, 0), false, 0.5*dbgLifetime);
+        }
       }
     }
+#endif
   }
 #if 0
   UE_LOG(LogTemp, Warning, TEXT("dt: %f ToScan: %d lines, Hit: %d lines YawRange: %f - %f "),
@@ -176,7 +204,7 @@ void ALidar::Tick(float dt)
   {
     SCOPE_CYCLE_COUNTER(STAT_LidarSend);
     if (IOProtocol)
-      IOProtocol->pushScan(scanData, scannedVectors, timeStamps);
+      IOProtocol->pushScan(scanData, intensities, scannedVectors, timeStamps);
     LastRotation = nextPose.Rotator();
     LastLocation = nextPos;
     LastMeasureTime = endTime;
