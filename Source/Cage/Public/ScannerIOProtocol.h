@@ -89,7 +89,6 @@ UCLASS(ClassGroup = "Sensors", BluePrintable)
 class UScannerIOProtocolVelodyne : public UScannerIOProtocolUDP {
   GENERATED_BODY()
 
-  static const int IntensityDRange = 255;
   FBufferArchive Pack;
   size_t NDataBlocks = 0;
 
@@ -115,4 +114,6 @@ public:
   // ModelID vlp-16: 0x22(34), hdl-32: 0x21(33), vlp-32c: 0x28(40), vls-128: 0xa1(161)
   UPROPERTY(EditDefaultsOnly, Category = "Setup")
     uint8 ModelID = 0x22;
+  UPROPERTY(EditDefaultsOnly, Category = "Setup")
+  int IntensityDRange = 255;
 };

@@ -6,6 +6,7 @@
 #include "LIDAR.h"
 #include <Engine/Public/DrawDebugHelpers.h>
 #include <Core/Public/Math/UnrealMathUtility.h>
+#include <PhysicalMaterials/PhysicalMaterial.h>
 #include <Core/Public/Async/ParallelFor.h>
 DECLARE_STATS_GROUP(TEXT("CageSensors"), STATGROUP_CageSensors, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Tick"), STAT_LidarTick, STATGROUP_CageSensors);
@@ -161,11 +162,26 @@ void ALidar::Tick(float dt)
       if (res && resHit.Distance > MinRange - BodyRadius) {
         hitLocations[idx] = resHit.Location;
         range = (resHit.Distance + BodyRadius + rdist(Rgen)) * 10; // cm -> mm;
-        // 正対したら上がる
-        // 距離が離れると下がる
-        // 10%が下限
-        intensity = FMath::Clamp<float>(FVector::DotProduct(resHit.ImpactNormal, -fv)*0.5 +  (0.1 + 0.9 / range), 0., 1.);
-        
+        int surface = static_cast<int>(resHit.PhysMaterial->SurfaceType);
+        FIntensityParam *intensityParam=&DefaultIntensityResponseParams;
+        if (IntensityResponseParams.Num() > surface) {
+          intensityParam = &IntensityResponseParams[surface];
+        }
+        // Cook-Torrance Model
+        float albedo = intensityParam->Albedo;
+        float roughness = intensityParam->Roughness;
+        float metalic = intensityParam->Metaric;
+        float retro = intensityParam->Retroreflection;
+        float roughness_sq = roughness * roughness;
+        float dotproduct = FVector::DotProduct(resHit.ImpactNormal, -fv);
+        float F = metalic + (1 - metalic)*powf(1 - dotproduct, 5);
+        float D = roughness_sq / (PI*powf(dotproduct*dotproduct*(roughness_sq - 1) + 1, 2));
+        float V = 1./4.*(dotproduct*sqrt(dotproduct*dotproduct*(1-roughness_sq)+roughness_sq));
+        float specular = D * V * F;
+        float diffuse = albedo / PI * (dotproduct*(1-retro)+retro)*(1 - F);
+        intensity = (diffuse + specular) / ((range/1000.)*(1-retro)+retro)*IntensityScalingFactor;
+        intensity = FMath::Clamp<float>(intensity, 0., 1.);
+
 #if 0   // ここで描画する場合にはParallelForをsingle threadにする必要がある
         if (++hit%5==1)
         {
