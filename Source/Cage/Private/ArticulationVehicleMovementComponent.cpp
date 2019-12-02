@@ -152,24 +152,24 @@ void UArticulationVehicleMovementComponent::FixupReferences()
     WheelL.Perimeter = WheelL.Wheel->Link.GetRadiusIfSphere() * 2 * PI;
     WheelR.Perimeter = WheelR.Wheel->Link.GetRadiusIfSphere() * 2 * PI;
     ensure(WheelR.Perimeter != 0. && WheelL.Perimeter != 0.);
-    UE_LOG(LogTemp, Warning, TEXT("[%s] FixupReferences R:N=%s Perimeter=%f L:N=%s Perimeter=%f"),
+    UE_LOG(LogTemp, Verbose, TEXT("[%s] FixupReferences R:N=%s Perimeter=%f L:N=%s Perimeter=%f"),
       *(this->GetName()), *(WheelR.Wheel->GetName()), WheelR.Perimeter, *(WheelL.Wheel->GetName()), WheelL.Perimeter);
     IsReady = true;
     RegisterComm();
   }
   else {
-    UE_LOG(LogTemp, Warning, TEXT("Is not Ready"));
+    UE_LOG(LogTemp, Verbose, TEXT("[%s] Is not Ready"),*(this->GetName()));
     if (!WheelR.Wheel) {
-      UE_LOG(LogTemp, Warning, TEXT("WheelR.Wheel==nullptr"));
+      UE_LOG(LogTemp, Verbose, TEXT("[%s] WheelR.Wheel==nullptr"),*(this->GetName()));
     }
     else if (!WheelL.Wheel) {
-      UE_LOG(LogTemp, Warning, TEXT("WheelL.Wheel==nullptr"));
+      UE_LOG(LogTemp, Verbose, TEXT("[%s] WheelL.Wheel==nullptr"), *(this->GetName()));
     }
     else if (!WheelR.Wheel->IsStarted) {
-      UE_LOG(LogTemp, Warning, TEXT("WheelR.Wheel->IsStarted!=true"));
+      UE_LOG(LogTemp, Verbose, TEXT("[%s] WheelR.Wheel->IsStarted!=true"), *(this->GetName()));
     }
     else if (!WheelL.Wheel->IsStarted) {
-      UE_LOG(LogTemp, Warning, TEXT("WheelL.Wheel->IsStarted!=true"));
+      UE_LOG(LogTemp, Verbose, TEXT("[%s] WheelL.Wheel->IsStarted!=true"), *(this->GetName()));
     }
     GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UArticulationVehicleMovementComponent::FixupReferences);
   }
