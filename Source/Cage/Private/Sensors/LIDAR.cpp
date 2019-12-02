@@ -23,6 +23,12 @@ static TAutoConsoleVariable<int32> CVarVisualize(
   ECVF_RenderThreadSafe
 );
 
+UIntensityResponseParams::UIntensityResponseParams(const FObjectInitializer& ObjectInitializer)
+  :Super(ObjectInitializer),
+  DefaultResponse  { 0.1, 0.5, 0.7, 0 }
+{}
+
+
 void ALidar::BeginPlay()
 {
   Super::BeginPlay();
@@ -32,29 +38,7 @@ void ALidar::BeginPlay()
   if (Scanner != nullptr) {
     Scanner->init(LastMeasureTime, this);
   }
-
-#if 0
-  // ad-hoc init code
-  if (Scanner == nullptr) {
-    Scanner = NewObject<UScanStrategy>(this);
-    Scanner->init(LastMeasureTime);
-    //Scanner->StepHAngle = StepHAngle;
-    UE_LOG(LogTemp, Warning, TEXT("Scanner Created"));
-  }
-  if (IOProtocol == nullptr) {
-    IOProtocol = NewObject<UScannerIOProtocol>(this);
-    if (IOProtocol != nullptr) {
-      IOProtocol->init(GetName());
-      IOProtocol->EndHAngle = EndHAngle;
-      IOProtocol->StartHAngle = StartHAngle;
-      IOProtocol->Rpm = Rpm;
-      IOProtocol->StepHAngle = StepHAngle;
-      UE_LOG(LogTemp, Warning, TEXT("IOProtocol Created"));
-    }
-  }
-  Yaw = StartHAngle;
-#endif
-  //FRotator spinner = FRotator(pitch, Yaw, 0);
+  UpdateIntensityParams();
 }
 
 void ALidar::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -76,6 +60,36 @@ void ALidar::Init()
   }
   if (Scanner == nullptr) {
     UE_LOG(LogTemp, Error, TEXT("%s: ScanStrategy component is missing"),*GetName());
+  }
+  return;
+}
+
+void ALidar::UpdateIntensityParams()
+{
+  const UEnum *enumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPhysicalSurface"), true);
+  if (!enumPtr) {
+    UE_LOG(LogTemp, Warning, TEXT("[%s] No EPhysicalSurface enum found"), *(this->GetName()));
+    return;
+  }
+  // Fill all IntensityResponseParams with Default response
+  const UIntensityResponseParams* intensityResponseSettings = GetDefault<UIntensityResponseParams>();
+  IntensityResponseParams.SetNumUninitialized(SurfaceType_Max);
+  for (int i = (int)SurfaceType_Default; i < (int)SurfaceType_Max; ++i) {
+    IntensityResponseParams[i] = intensityResponseSettings->DefaultResponse;
+  }
+  // for each Per surface type response entries
+  for (int i = 0; i < intensityResponseSettings->PerSurfaceTypeResponse.Num(); ++i)
+  {
+    const auto &entry = intensityResponseSettings->PerSurfaceTypeResponse[i];
+    //  copy params into specified IntensityResponseParams
+    IntensityResponseParams[entry.SurfaceType] = static_cast<FIntensityParam>(entry);
+    UE_LOG(LogTemp, Warning, TEXT("[%s] %s : albedo=%f  metaric=%f  roughness=%f  retro=%f"), *(this->GetName()),
+      *enumPtr->GetDisplayNameTextByValue(entry.SurfaceType).ToString(),
+      IntensityResponseParams[entry.SurfaceType].Albedo,
+      IntensityResponseParams[entry.SurfaceType].Metaric,
+      IntensityResponseParams[entry.SurfaceType].Roughness,
+      IntensityResponseParams[entry.SurfaceType].Retroreflection
+    );
   }
 }
 
@@ -163,10 +177,7 @@ void ALidar::Tick(float dt)
         hitLocations[idx] = resHit.Location;
         range = (resHit.Distance + BodyRadius + rdist(Rgen)) * 10; // cm -> mm;
         int surface = static_cast<int>(resHit.PhysMaterial->SurfaceType);
-        FIntensityParam *intensityParam=&DefaultIntensityResponseParams;
-        if (IntensityResponseParams.Num() > surface) {
-          intensityParam = &IntensityResponseParams[surface];
-        }
+        const FIntensityParam *intensityParam=&IntensityResponseParams[surface];
         // Cook-Torrance Model
         float albedo = intensityParam->Albedo;
         float roughness = intensityParam->Roughness;
@@ -175,6 +186,7 @@ void ALidar::Tick(float dt)
         float roughness_sq = roughness * roughness;
         float dotproduct = FVector::DotProduct(resHit.ImpactNormal, -fv);
         float F = metalic + (1 - metalic)*powf(1 - dotproduct, 5);
+        // Simplified GGX (https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf)
         float D = roughness_sq / (PI*powf(dotproduct*dotproduct*(roughness_sq - 1) + 1, 2));
         float V = 1./4.*(dotproduct*sqrt(dotproduct*dotproduct*(1-roughness_sq)+roughness_sq));
         float specular = D * V * F;
