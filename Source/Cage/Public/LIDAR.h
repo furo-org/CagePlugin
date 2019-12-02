@@ -16,6 +16,37 @@
 /**
  * 
  */
+
+USTRUCT()
+struct CAGE_API FIntensityParam {
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 1))
+    float Metaric;
+  UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 1))
+    float Roughness;
+  UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 1))
+    float Albedo;
+  UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 1))
+    float Retroreflection;
+};
+
+USTRUCT()
+struct CAGE_API FIntensityParamSetting: public FIntensityParam {
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+    TEnumAsByte<EPhysicalSurface> SurfaceType;
+};
+
+UCLASS(config=Project, defaultconfig)
+class CAGE_API UIntensityResponseParams :public UObject {
+  GENERATED_UCLASS_BODY()
+  UPROPERTY(EditAnywhere, config, Category = IntensityResponse)
+    FIntensityParam DefaultResponse;
+  UPROPERTY(EditAnywhere, config, Category = IntensityResponse)
+    TArray<FIntensityParamSetting> PerSurfaceTypeResponse;
+};
+
+
 UCLASS(ClassGroup = "Sensors", BluePrintable)
 class CAGE_API ALidar : public AStaticMeshActor
 {
@@ -31,6 +62,7 @@ public:
 
   virtual void Init();
 
+  void UpdateIntensityParams();
   virtual void OnConstruction(const FTransform& Transform) override;
 
   UFUNCTION(BlueprintCallable, Category = "Setup")
@@ -54,6 +86,10 @@ public:
   UPROPERTY(EditDefaultsOnly)
     float NoiseDistribution = 2; // Noise distribution add to distance response [cm]
 
+  UPROPERTY(EditAnywhere)
+    TArray<FIntensityParam> IntensityResponseParams;
+  UPROPERTY(EditAnywhere)
+    float IntensityScalingFactor = 1.;
 protected:
 
   UPROPERTY(VisibleAnywhere,Category="Lidar")
