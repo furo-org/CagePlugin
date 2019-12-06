@@ -193,6 +193,8 @@ void ALidar::Tick(float dt)
         float diffuse = albedo / PI * (dotproduct*(1-retro)+retro)*(1 - F);
         intensity = (diffuse + specular) / ((range/1000.)*(1-retro)+retro)*IntensityScalingFactor;
         intensity = FMath::Clamp<float>(intensity, 0., 1.);
+        if (intensity < IntensityCutoff)
+          range = 0;
 
 #if 0   // ここで描画する場合にはParallelForをsingle threadにする必要がある
         if (++hit%5==1)

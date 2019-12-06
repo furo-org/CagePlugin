@@ -90,6 +90,8 @@ public:
     TArray<FIntensityParam> IntensityResponseParams;
   UPROPERTY(EditAnywhere)
     float IntensityScalingFactor = 1.;
+  UPROPERTY(EditAnywhere)
+    float IntensityCutoff = 0.01;
 protected:
 
   UPROPERTY(VisibleAnywhere,Category="Lidar")
