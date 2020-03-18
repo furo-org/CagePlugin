@@ -11,6 +11,7 @@
 DECLARE_STATS_GROUP(TEXT("CageSensors"), STATGROUP_CageSensors, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Tick"), STAT_LidarTick, STATGROUP_CageSensors);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Trace"), STAT_LidarTrace, STATGROUP_CageSensors);
+DECLARE_CYCLE_STAT(TEXT("ALidar::Intensity"), STAT_LidarTraceIntensity, STATGROUP_CageSensors);
 DECLARE_CYCLE_STAT(TEXT("ALidar::Send"), STAT_LidarSend, STATGROUP_CageSensors);
 
 static TAutoConsoleVariable<int32> CVarVisualize(
@@ -83,10 +84,11 @@ void ALidar::UpdateIntensityParams()
     const auto &entry = intensityResponseSettings->PerSurfaceTypeResponse[i];
     //  copy params into specified IntensityResponseParams
     IntensityResponseParams[entry.SurfaceType] = static_cast<FIntensityParam>(entry);
-    UE_LOG(LogTemp, Warning, TEXT("[%s] %s : albedo=%f  metaric=%f  roughness=%f  retro=%f"), *(this->GetName()),
+    UE_LOG(LogTemp, Warning, TEXT("[%s] %s : id=%d albedo=%f  specular=%f  roughness=%f  retro=%f"), *(this->GetName()),
       *enumPtr->GetDisplayNameTextByValue(entry.SurfaceType).ToString(),
+	  entry.SurfaceType,
       IntensityResponseParams[entry.SurfaceType].Albedo,
-      IntensityResponseParams[entry.SurfaceType].Metaric,
+      IntensityResponseParams[entry.SurfaceType].Specular,
       IntensityResponseParams[entry.SurfaceType].Roughness,
       IntensityResponseParams[entry.SurfaceType].Retroreflection
     );
@@ -176,26 +178,43 @@ void ALidar::Tick(float dt)
       if (res && resHit.Distance > MinRange - BodyRadius) {
         hitLocations[idx] = resHit.Location;
         range = (resHit.Distance + BodyRadius + rdist(Rgen)) * 10; // cm -> mm;
+		SCOPE_CYCLE_COUNTER(STAT_LidarTraceIntensity);
         int surface = static_cast<int>(resHit.PhysMaterial->SurfaceType);
         const FIntensityParam *intensityParam=&IntensityResponseParams[surface];
-        // Cook-Torrance Model
+        // Microfacet reflection model
         float albedo = intensityParam->Albedo;
         float roughness = intensityParam->Roughness;
-        float metalic = intensityParam->Metaric;
+		float specular = intensityParam->Specular;
         float retro = intensityParam->Retroreflection;
         float roughness_sq = roughness * roughness;
-        float dotproduct = FVector::DotProduct(resHit.ImpactNormal, -fv);
-        float F = metalic + (1 - metalic)*powf(1 - dotproduct, 5);
-        // Simplified GGX (https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf)
-        float D = roughness_sq / (PI*powf(dotproduct*dotproduct*(roughness_sq - 1) + 1, 2));
-        float V = 1./4.*(dotproduct*sqrt(dotproduct*dotproduct*(1-roughness_sq)+roughness_sq));
-        float specular = D * V * F;
-        float diffuse = albedo / PI * (dotproduct*(1-retro)+retro)*(1 - F);
-        intensity = (diffuse + specular) / ((range/1000.)*(1-retro)+retro)*IntensityScalingFactor;
+		float roughness_4 = roughness_sq * roughness_sq;
+		float VN = FVector::DotProduct(resHit.ImpactNormal, -fv); // = LN
+		float VN_sq = VN * VN;
+		//constexpr float VH = 1; // = LH
+		float F_s = specular;   // +(1 - specular)*powf(1 - VH, 5);  =0
+        // Simplified GGX
+		float d = VN_sq * (roughness_4 - 1) + 1;
+        float D = roughness_4 / (PI*d*d);
+		// Height-Correlated Masking and Shadowing
+		float Lambda = (-1 + sqrt(1 + roughness_4 * (1 / VN_sq - 1)))/2.; // Lambda_GGX
+		float G = 1. / (1 + 2 * Lambda);
+		// retro
+		float F_r = retro;
+		float f_specular = D * G * F_s / (4 * VN_sq);
+		float d_retro = 1/*retro reflective*/ * (roughness_4 - 1) + 1;
+		float D_retro= roughness_4 / (PI*d_retro*d_retro);
+		float f_retro = D_retro * (1 - F_s)*F_r;
+		float f_diffuse = albedo / PI *(1-F_s)*(1-F_r);
+		float range_m = range / 1000.;
+		intensity = (f_diffuse + f_specular + f_retro )*(1. / (range_m*range_m))*IntensityScalingFactor;
         intensity = FMath::Clamp<float>(intensity, 0., 1.);
         if (intensity < IntensityCutoff)
           range = 0;
-
+#if 0
+			if (++hit % 50 == 1 && specular>0.9  /*surface ==2*/)
+				UE_LOG(LogTemp, Warning, TEXT("#4 s:%d i:%f diffuse:%f specular:%f retro:%f range_m:%f F_s:%f F_r:%f D:%f G:%f roughness2:%f dp2:%f"),
+					surface,intensity, f_diffuse, f_specular, f_retro, range_m, F_s, F_r, D, G,roughness_sq,VN_sq);
+#endif
 #if 0   // ここで描画する場合にはParallelForをsingle threadにする必要がある
         if (++hit%5==1)
         {
@@ -219,6 +238,29 @@ void ALidar::Tick(float dt)
     }
 #endif
   }
+#if 0
+  if (currentTime < 2 && currentTime>1) {
+	  const UEnum *enumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPhysicalSurface"), true);
+	  if (!enumPtr) {
+		  UE_LOG(LogTemp, Warning, TEXT("[%s] No EPhysicalSurface enum found"), *(this->GetName()));
+	  }
+	  else {
+		  UE_LOG(LogTemp, Warning, TEXT("IntensityReponseParam Dump: Entrycount=%d"), IntensityResponseParams.Num());
+		  for (int i = 0; i < IntensityResponseParams.Num(); ++i)
+		  {
+			  UE_LOG(LogTemp, Warning, TEXT("[%s] %s : id=%d albedo=%f  specular=%f  roughness=%f  retro=%f"), *(this->GetName()),
+				  *enumPtr->GetDisplayNameTextByValue(i).ToString(),
+				  i,
+				  IntensityResponseParams[i].Albedo,
+				  IntensityResponseParams[i].Specular,
+				  IntensityResponseParams[i].Roughness,
+				  IntensityResponseParams[i].Retroreflection
+			  );
+		  }
+	  }
+  }
+#endif
+
 #if 0
   UE_LOG(LogTemp, Warning, TEXT("dt: %f ToScan: %d lines, Hit: %d lines YawRange: %f - %f "),
     dt, scanVectors.Num(),hit,

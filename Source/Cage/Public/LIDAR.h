@@ -21,7 +21,7 @@ USTRUCT()
 struct CAGE_API FIntensityParam {
   GENERATED_USTRUCT_BODY()
   UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 1))
-    float Metaric;
+    float Specular;
   UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 1))
     float Roughness;
   UPROPERTY(EditAnywhere, meta = (ClampMin = 0, ClampMax = 1))
