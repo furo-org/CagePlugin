@@ -181,7 +181,7 @@ void ALidar::Tick(float dt)
 		SCOPE_CYCLE_COUNTER(STAT_LidarTraceIntensity);
         int surface = static_cast<int>(resHit.PhysMaterial->SurfaceType);
         const FIntensityParam *intensityParam=&IntensityResponseParams[surface];
-        // Microfacet reflection model
+        // Micro facet reflection model
         float albedo = intensityParam->Albedo;
         float roughness = intensityParam->Roughness;
 		float specular = intensityParam->Specular;
