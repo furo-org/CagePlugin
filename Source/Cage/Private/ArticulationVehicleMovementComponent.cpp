@@ -12,7 +12,7 @@
 #include<sstream>
 #include<string>
 // cereal-UE4
-#include "cerealUE4.hh"
+#include "CerealUE4.hh"
 
 void FWheelController::setVelocityTargetRpm(float rpm)
 {
