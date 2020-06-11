@@ -13,26 +13,7 @@
 #include <sstream>
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
-#include "Math/TransformCalculus2D.h" // need this in addition to CoreMinimal.h to compile cereal-UE4.hxx
-#include "cerealUE4.hh"
 
-// Cereal serealize rules
-#if 0
-template<typename Archive>
-void serialize(Archive &ar, FNamedMessage j) {
-  ar(
-    cereal::make_nvp("Name", j.Name),
-    cereal::make_nvp("Data", j.Message)
-  );
-}
-template<typename Archive>
-void serialize(Archive &ar, FNamedBinaryData b) {
-  ar(
-    cereal::make_nvp("Name", b.Name),
-    cereal::make_nvp("Data", b.Message)
-  );
-}
-#endif
 class ACommActor::FImpl {
 public:
   zmq::context_t *ZContext = nullptr;
@@ -232,16 +213,16 @@ Message の構造として期待するもの
         //UE_LOG(LogTemp, Warning, TEXT("second part message (len=%d) received"), ret);
       }
 
-      FString type;
-      std::string str(msg.data<char>(),msg.size());
-      std::istringstream buffer(str);
-      cereal::JSONInputArchive ar(buffer);
-      ar(cereal::make_nvp("Type", type));
+      FString Str(msg.size(),UTF8_TO_TCHAR(msg.data<char>()));
+      TSharedRef<TJsonReader<TCHAR>>JsonReader=TJsonReaderFactory<TCHAR>::Create(Str);
+      TSharedPtr<FJsonObject> Jo=MakeShared<FJsonObject>();
+      FJsonSerializer::Deserialize(JsonReader,Jo);
+      FString Type=Jo->GetStringField("Type");
+      int num=Jo->Values.Num();
+      UE_LOG(LogTemp,Warning,TEXT("CommActor: recieved message with %d params."), num)
       FString retmsg;
-
-      if (type == "Console") {
-        FString line;
-        ar(cereal::make_nvp("Input", line));
+      if (Type == "Console") {
+        FString line=Jo->GetStringField("Input");
         UE_LOG(LogTemp, Warning, TEXT("Console command requested: %s"),*line);
         FStringOutputDevice outbuff;
         GEngine->Exec(GetWorld(), *line, outbuff);
@@ -253,10 +234,9 @@ Message の構造として期待するもの
           ,*outbuff.ReplaceQuotesWithEscapedQuotes()
         );
       }
-      else if (type == "ListEndpoint") {
-        FString tag;
-        ar(cereal::make_nvp("Tag", tag));
-        auto eps = D->EnumerateByTag(tag);
+      else if (Type == "ListEndpoint") {
+        FString Tag=Jo->GetStringField("Tag");
+        auto eps = D->EnumerateByTag(Tag);
         FString epArray;
         for (const auto &ep : eps) {
           if (!epArray.IsEmpty())epArray += ",";
@@ -269,10 +249,9 @@ Message の構造として期待するもの
           "}"
         ), *epArray);
       }
-      else if (type == "GetActorMeta") {
-        FString target;
+      else if (Type == "GetActorMeta") {
+        FString target=Jo->GetStringField("Endpoint");
         FString resultCode;
-        ar(cereal::make_nvp("Endpoint", target));
         if (target.IsEmpty()) {
           resultCode = "No endpoint specified.";
         }
@@ -288,10 +267,9 @@ Message の構造として期待するもの
           ), *meta);
         }
       }
-      else if (type == "ActorMsg") {
-        FString target;
+      else if (Type == "ActorMsg") {
+        FString target=Jo->GetStringField("Endpoint");
         FString resultCode;
-        ar(cereal::make_nvp("Endpoint", target));
         if (target.IsEmpty()) {
           resultCode = "No endpoint specified.";
         }
@@ -324,7 +302,8 @@ Message の構造として期待するもの
           " \"Type\" : \"%s\",\n"
           " \"Result\" : \"Unknown command\"\n"
           "}"
-        ), *type);
+        ), *Type);
+        UE_LOG(LogTemp,Warning,TEXT("Unknown Command %s Received"),*Type);
       }
       std::string rbuf(TCHAR_TO_UTF8(*retmsg));
       D->ZCmdSocket->send(rbuf.begin(), rbuf.end());
