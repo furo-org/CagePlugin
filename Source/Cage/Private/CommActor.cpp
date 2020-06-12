@@ -6,15 +6,19 @@
 #include "CommActor.h"
 #include "MessageEndpointBuilder.h"
 #include "IMessageContext.h"
+#ifdef _WINDOWS
 #include "AllowWindowsPlatformTypes.h"
+#endif
 #include "zmq_nt.hpp"
+#ifdef _WINDOWS
 #include "HideWindowsPlatformTypes.h"
+#endif
 #include "Types.h"
 #include <sstream>
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Math/TransformCalculus2D.h" // need this in addition to CoreMinimal.h to compile cereal-UE4.hxx
-#include "cerealUE4.hh"
+#include "CerealUE4.hh"
 
 // Cereal serealize rules
 #if 0
