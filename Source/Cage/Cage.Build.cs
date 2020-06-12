@@ -5,7 +5,7 @@ using System.IO;
 
 public class Cage : ModuleRules
 {
-	public Cage(ReadOnlyTargetRules Target) : base(Target)
+	public Cage(ReadOnlyTargetRules target) : base(target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
         bEnableExceptions = true;
@@ -29,8 +29,9 @@ public class Cage : ModuleRules
 				"Core",
 				"Sockets",
 				"Networking",
+				"Json",
+				"JsonUtilities",
 				"HeadMountedDisplay",
-				"CerealUE4",
 				"zmque",
 				"zmqLibrary"
 			}

@@ -4,8 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include "ObjectTracker.h"
-// cerial-UE4
-#include "cerealUE4.hh"
+
+#include "EngineUtils.h"
+#include "Comm/Types.h"
+#include "JsonUtilities/Public/JsonObjectConverter.h"
 
 
 // Sets default values for this component's properties
@@ -70,27 +72,28 @@ void UObjectTracker::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
     FCollisionQueryParams params;
     params.bTraceComplex = true;
     params.AddIgnoredActor(GetOwner());
-    bool res = GetWorld()->LineTraceSingleByChannel(resHit, traceStart, traceEnd, ECC_Visibility, params, resParams);
+    GetWorld()->LineTraceSingleByChannel(resHit, traceStart, traceEnd, ECC_Visibility, params, resParams);
     FString Result;
+    FTargetActorPosition Data;
+    //  Hitしたらそのオブジェクトの位置を取得してCommにSend
+    // 古いバージョンでは次のような json objectが戻されたが、現在は変更している
+    //  "TargetName": pawn->GetName(),
+    //  "TargetPos": pawn->GetActorLocation(),
+    //  "IsInsight": true/false
+    Data.Name=pawn->GetName();
+    Data.Position=pawn->GetActorLocation();
     if (resHit.GetActor() == pawn)
     {
-      //  Hitしたらそのオブジェクトの位置を取得してCommにSend
-      Result = CerealFromNVP(
-        "TargetName", pawn->GetName(),
-        "TargetPos", pawn->GetActorLocation(),
-        "IsInsight", true);
+      Data.IsInsight=true;
     }
     else
     {
-      Result = CerealFromNVP(
-        "TargetName", pawn->GetName(),
-        "TargetPos", pawn->GetActorLocation(),
-        "IsInsight", false);
+      Data.IsInsight=false;
       UE_LOG(LogTemp, Warning, TEXT("Out of sight %s"), *pawn->GetName());
     }
-    auto msg = new FNamedMessage;
-    msg->Name = GetName();
-    msg->Message = Result;
-    Comm.Send(msg);
+    auto Msg = new FNamedMessage;
+    Msg->Name = GetName();
+    FJsonObjectConverter::UStructToJsonObjectString(Data, Msg->Message);
+    Comm.Send(Msg);
   }
 }

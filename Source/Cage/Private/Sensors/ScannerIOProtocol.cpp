@@ -6,7 +6,8 @@
 #include "ScannerIOProtocol.h"
 #include "ScanStrategy.h"
 #include "LIDAR.h"
-#include "cerealUE4.hh"
+#include "Comm/Types.h"
+#include "JsonUtilities/Public/JsonObjectConverter.h"
 #include"Runtime/Core/Public/HAL/IConsoleManager.h"
 
 static TAutoConsoleVariable<int32> CVarBroadcast(
@@ -151,10 +152,13 @@ void UScannerIOProtocolJsonComm::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 void UScannerIOProtocolJsonComm::sendPacket()
 {
-  FNamedMessage *msg(new FNamedMessage);
-  msg->Message = CerealFromNVP("Ranges", Ranges, "Angles", Yaws);
-  msg->Name = GetOwner()->GetName();
-  Comm.Send(msg);
+  FScan2D Scan;
+  Scan.Ranges=Ranges;
+  Scan.Angles=Yaws;
+  FNamedMessage *Msg(new FNamedMessage);
+  Msg->Name = GetOwner()->GetName();
+  FJsonObjectConverter::UStructToJsonObjectString(Scan, Msg->Message);  
+  Comm.Send(Msg);
 }
 
 // ------------------------------------------------------------ Velodyne Protocol

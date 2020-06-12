@@ -226,7 +226,9 @@ void ALidar::Tick(float dt)
       }
       scanData[idx] = range;
       intensities[idx] = intensity;
-      }/*, true /*single thread*/); // ParallelFor
+      } // ParallelFor
+        // , true // uncomment this for single thread version
+    );
 #if 1
     auto vis = CVarVisualize.GetValueOnGameThread();
     if (vis) {

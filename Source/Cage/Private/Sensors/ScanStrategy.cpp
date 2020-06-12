@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #include "ScanStrategy.h"
-#include "Lidar.h"
+#include "LIDAR.h"
 
 void UScan2DStrategy::init(ALidar *lidar)
 {
