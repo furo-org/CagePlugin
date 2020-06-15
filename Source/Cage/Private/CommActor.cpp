@@ -6,11 +6,11 @@
 #include "CommActor.h"
 #include "MessageEndpointBuilder.h"
 #include "IMessageContext.h"
-#ifdef _WINDOWS
+#ifdef _WIN64
 #include "AllowWindowsPlatformTypes.h"
 #endif
 #include "zmq_nt.hpp"
-#ifdef _WINDOWS
+#ifdef _WIN64
 #include "HideWindowsPlatformTypes.h"
 #endif
 #include "Types.h"
