@@ -80,3 +80,56 @@ struct FNamedBinaryData
   UPROPERTY(EditAnywhere, Category = "Message")
     TArray<uint8> Message;
 };
+
+
+USTRUCT()
+struct CAGE_API FVehicleStatus
+{
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+  FVector Position;
+  UPROPERTY(EditAnywhere)
+  FQuat Pose; //"Pose"
+  UPROPERTY(EditAnywhere)
+  FVector AngVel; //FVector(RollRate, PitchRate, YawRate),
+  UPROPERTY(EditAnywhere)
+  FVector Accel;
+  UPROPERTY(EditAnywhere)
+  float Yaw;
+  UPROPERTY(EditAnywhere)
+  float LeftRpm;
+  UPROPERTY(EditAnywhere)
+  float RightRpm;
+};
+
+USTRUCT()
+struct CAGE_API FActorPosition
+{
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+  FVector Position;
+  UPROPERTY(EditAnywhere)
+  float Yaw;
+};
+
+USTRUCT()
+struct CAGE_API FTargetActorPosition
+{
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+  FString Name;
+  UPROPERTY(EditAnywhere)
+  FVector Position;
+  UPROPERTY(EditAnywhere)
+  bool IsInsight;
+};
+
+USTRUCT()
+struct CAGE_API FScan2D
+{
+GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+  TArray<int> Ranges;
+  UPROPERTY(EditAnywhere)
+  TArray<float> Angles;
+};

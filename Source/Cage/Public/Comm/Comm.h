@@ -59,7 +59,7 @@ public:
     Meta = meta;
     Endpoint = FMessageEndpoint::Builder(name)
       .Handling<FAnnounce>(this, &CommEndpointIO::HandleAnnounce)
-      .Handling<MT>(this, &CommEndpointIO::HandleMessage);
+      .template Handling<MT>(this, &CommEndpointIO::HandleMessage);
     if (Endpoint.IsValid()) {
       Endpoint->Subscribe<FAnnounce>();
     }
