@@ -11,9 +11,9 @@ CageClient library wraps detail of communications with CommActor of this plugin.
 
 + [CageClient library](https://github.com/furo-org/CageClient)
 
-VTC2018 project uses this plugin.
+VTC project uses this plugin.
 
-+ [VTC2018](https://github.com/furo-org/VTC2018)
++ [VTC](https://github.com/furo-org/VTC)
 
 ## Actors in this plugin
 
@@ -46,6 +46,10 @@ Player pawn who has Velodyne Actor on his head.
 ### Cage/Player/LidarManStable
 
 Player pawn who has floating Velodyne Actor over his head.
+
+### Cage/MapUtils/GeoReference
+
+Reference point actor for converting UE coordinate values(x,y) to geographic coordinate values(B,L). Place this actor in the level and fill "Location" fields with corresponding geographic coordinate values.
 
 ## License
 
