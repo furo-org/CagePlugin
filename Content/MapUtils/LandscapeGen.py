@@ -29,6 +29,7 @@ import osr
 import os
 from PIL import Image, ImageTransform
 import numpy as np
+import math
 
 al=unreal.EditorAssetLibrary
 el=unreal.EditorLevelLibrary
@@ -44,7 +45,23 @@ inputGeotiff=os.path.join(projdir,"GeotiffDEM.tif")
 outputHeightmap=os.path.join(projdir,"heightmap.png")
 toUEScale=100.*128./zScale   # [m]->[cm]->[heightmap unit]
 
+LocalGeotiff=[
+  {"file":os.path.join(projdir,"TC_P8_pede_elev_divmask.tif"),
+  "offset":25.43}
+]
+
 # Utilities
+
+# FVector  ([deg], [min], [sec]) -> float [deg]
+def Decode60(vec):
+  return ((vec.z/60.)+vec.y)/60.+vec.x;
+
+# float [deg] -> FVector ([deg], [min], [sec])
+def Encode60(v):
+  d=math.floor(v)
+  m=math.floor((v-d)*60.)
+  s=(v-d-m/60.)*3600.
+  return unreal.Vector(d,m,s)
 
 class GeoTIFF:
   def __init__(self, file):
@@ -59,21 +76,56 @@ class GeoTIFF:
     # inverse transform from GeoTIFF(UV) to GeoTIFF(Logical)
     self.mat = self.gt.GetGeoTransform()
     d = 1./(self.mat[5]*self.mat[1]-self.mat[4]*self.mat[2])
-    self.iaf = np.array([[self.mat[5], -self.mat[2]],
+    self.iaf = np.array([[ self.mat[5],-self.mat[2]],
                          [-self.mat[4], self.mat[1]]])*d
     self.offset = np.array([[self.mat[0]], [self.mat[3]]])
+    self.af=np.array([[self.mat[1], self.mat[2]],
+                      [self.mat[4], self.mat[5]]])
 
   def setSrcEPSG(self, epsg):
     self.src_cs = osr.SpatialReference()
     self.src_cs.ImportFromEPSG(epsg)
-    self.transform = osr.CoordinateTransformation(self.src_cs, self.dst_cs)
+    self.transS2G = osr.CoordinateTransformation(self.src_cs, self.dst_cs)
+    # Geotiff CS to Interface CS
+    self.transG2S=osr.CoordinateTransformation(self.dst_cs,self.src_cs)
+
+  def getBL(self,uv):
+    u=uv[0]
+    v=uv[1]
+    bl=np.dot(self.af,np.array([[u],[v]]))+self.offset
+    sbl=self.transG2S.TransformPoint(bl[1][0],bl[0][0])
+    return (sbl[0],sbl[1])
+
+  def getBBoxBL(self):
+    # Geotiff CS to Interface CS
+    return (self.getBL((0,0)),self.getBL((self.gt.RasterXSize,self.gt.RasterYSize)))
+
+  def sanitizedBounds(self, bbox):
+    if bbox is None:
+      bbox=self.getBBoxBL()
+    tl,br=bboxBL
+    bmin, bmax = tl[0], br[0]
+    if bmin>bmax:
+      bmin, bmax = bmax, bmin
+    lmin, lmax = tl[1], br[1]
+    if lmin>lmax:
+      lmin, lmax = lmax, lmin
+    return ((bmin,bmax,lmin,lmax))
+
+  def getIntersection(self, bboxBL):
+    bbox=self.sanitizedBounds(bboxBL)
+    sbbox=self.sanitizedBounds()
+    bmin=max(bbox[0],sbbox[0])
+    bmax=min(bbox[1],sbbox[1])
+    lmin=max(bbox[2],sbbox[2])
+    lmax=min(bbox[3],sbbox[3])
+    return ((bmax,lmin),(bmin,lmax))  # North-East, South-West
 
   def getUV(self, srcBL):
-    gtBL = self.transform.TransformPoint(srcBL[1], srcBL[0])
+    gtBL = self.transS2G.TransformPoint(srcBL[1], srcBL[0])
     bl=np.array([[gtBL[0]],[gtBL[1]]])
     uv = np.dot(self.iaf, bl-self.offset)
     return (uv[0][0], uv[1][0])
-
 
 def getLandscapeBBox():
   # search for landscape proxy actors
@@ -113,6 +165,7 @@ def getGeoReference():
     if(a.get_class().get_name().startswith("GeoReferenceBP")):
       print("GeoReference Found")
       ref=a
+  ref.initialize_geo_conv()
   return ref
 
 # ----------------------------------------------------------------------------------------
@@ -125,15 +178,16 @@ nFrames=4
 with unreal.ScopedSlowTask(nFrames, text_label) as slow_task:
   slow_task.make_dialog(True)
 
-  tl=ref.get_bl(lx,ly)
-  bl=ref.get_bl(lx,hy)
-  br=ref.get_bl(hx,hy)
-  tr=ref.get_bl(hx,ly)
+  tl=tuple(map(Decode60, ref.get_bl(lx,ly)))
+  bl=tuple(map(Decode60, ref.get_bl(lx,hy)))
+  br=tuple(map(Decode60, ref.get_bl(hx,hy)))
+  tr=tuple(map(Decode60, ref.get_bl(hx,ly)))
   print("Reference Quad=tl:{0} bl:{1} br:{2} tr:{3}".format(tl, bl, br, tr))
   zo=ref.get_actor_location()
-  zobl=ref.get_bl(zo.x,zo.y)
+  zobl=tuple(map(Decode60,ref.get_bl(zo.x,zo.y)))
   print("GeoReference in UE {0}".format(zo))
   print("GeoReference in BL {0}".format(zobl))
+  #print(ref.get_xy(Encode60(zobl[0]),Encode60(zobl[1])))
 
   gt=GeoTIFF(inputGeotiff)
   tluv=gt.getUV(tl)
@@ -142,9 +196,17 @@ with unreal.ScopedSlowTask(nFrames, text_label) as slow_task:
   truv=gt.getUV(tr)
   zouv=gt.getUV(zobl)
 
-  print("Reference Quad on GeoTIFF image =tl:{0} bl:{1} br:{2} tr:{3}".format(tluv, bluv, bruv, truv, zouv))
+  print("Reference Quad on GeoTIFF image =tl:{0} bl:{1} br:{2} tr:{3}".format(tluv, bluv, bruv, truv))
   uvf=tluv+bluv+bruv+truv
   uvs=tuple(int(round(f)) for f in uvf)
+
+  tlbl=gt.getBL(tluv)
+  blbl=gt.getBL(bluv)
+  trbl=gt.getBL(truv)
+  brbl=gt.getBL(bruv)
+
+  print("Reference Quad returned =tl:{0} bl:{1} br:{2} tr:{3}".format(tlbl, blbl, brbl, trbl))
+  print("Geotiff BBox = {0}".format(gt.getBBoxBL()))
 
   slow_task.enter_progress_frame(1,"Transforming image region")
 

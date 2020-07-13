@@ -6,12 +6,14 @@
 
 #include "GeoReference.h"
 #include <array>
+
 #include "MathUtil.h"
 
 void AGeoReference::InitializeGeoConv()
 {
-    double phi0=((Lat_Sec/60.+Lat_Min)/60.+Lat_Deg)*Pi_d/180;
-    double lambda0=((Lon_Sec/60.+Lon_Min)/60.+Lon_Deg)*Pi_d/180;
+    double phi0=Decode60(FVector(Lat_Deg, Lat_Min, Lat_Sec));
+    double lambda0=Decode60(FVector(Lon_Deg, Lon_Min, Lon_Sec));
+    //UE_LOG(LogTemp,Warning, TEXT("GeoReference::InitializeGeoConv phi0=%f  lambda0=%f"), phi0, lambda0);
     Geo.BuildTable(phi0, lambda0, A,F,M0);
 }
 
@@ -105,6 +107,14 @@ void GeoConv::BuildTable(double phi0, double lambda0)
         n[i] = n[1] * n[i - 1];
     }
 
+    constexpr std::array<double,5> ATable[]  // 0 base
+    {
+        {1./2, -2./3, 5./16, 41./180, -127./288 },
+        {0, 13./48, -3./5, 557./1440, 281./630 },
+        { 0, 0, 61./240, -103./140, 15061./26880,},
+        { 0, 0, 0, 49561./161280, -179./168},
+        { 0, 0, 0, 0, 34729./80640}
+    };
     
     constexpr std::array<double, 5> BTable[] // 0 base
     {
@@ -136,6 +146,8 @@ void GeoConv::BuildTable(double phi0, double lambda0)
         return ret;
     };
 
+    for (int i = 1; i < Alpha.size(); ++i) // beta[1]...beta[5]
+        Alpha[i] = Lookup(ATable[i-1]);
     for (int i = 1; i < Beta.size(); ++i) // beta[1]...beta[5]
         Beta[i] = Lookup(BTable[i-1]);
     for (int i = 1; i < Delta.size(); ++i) // delta[1]...delta[6]
@@ -183,4 +195,15 @@ void GeoConv::GetBL(double x, double y, double& Bout, double& Lout)
     Bout=phi*180/Pi_d;
     Lout=lambda*180/Pi_d;
     //UE_LOG(LogTemp,Warning,TEXT("xi=%s  xip=%s  eta=%s etap=%s"),*dtofs("%.16g",xi),*dtofs("%.16g",xip),*dtofs("%.16g",eta),*dtofs("%.16g",etap));
+}
+void GeoConv::GetXY(double B, double L, double& Xout, double& Yout)
+{
+    double dLambda=L*Pi_d/180.-Lambda0;
+    double phi=B*Pi_d/180.;
+    double e2n=2*sqrt(N)/(1+N);
+    double tanChi=sinh(atanh(sin(phi))-e2n*atanh(e2n*sin(phi)));
+    double xip=atan2(tanChi,cos(dLambda));
+    double etap=atanh(sin(dLambda)/sqrt(1+Sq(tanChi)));
+    Xout=(2*m0*Sp)/Pi_d*(xip  + Sigma(1,5,[&](int j){return Alpha[j]*sin(2*j*xip)*cosh(2*j*etap);}))-m0*Sphi0;
+    Yout=(2*m0*Sp)/Pi_d*(etap + Sigma(1,5,[&](int j){return Alpha[j]*cos(2*j*xip)*sinh(2*j*etap);}));
 }
