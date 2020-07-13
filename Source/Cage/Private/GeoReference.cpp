@@ -42,7 +42,7 @@ constexpr double GeoConv::S(const double phi)
     }) ;
 }
 template<int lmax>
-constexpr double GeoConv::Sx(const double phi)
+double GeoConv::Sx(const double phi)
 {
     const int lmax2=lmax*2;
     const double n15 = N * 1.5;

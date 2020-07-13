@@ -45,7 +45,7 @@ private:
     template<int lmax=5>
     constexpr double S(const double phi);
     template<int lmax=5>
-    constexpr double Sx(const double phi);
+    double Sx(const double phi);
 };
 
 
