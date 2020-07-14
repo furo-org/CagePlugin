@@ -11,8 +11,8 @@
 
 void AGeoReference::InitializeGeoConv()
 {
-    double phi0=Decode60(FVector(Lat_Deg, Lat_Min, Lat_Sec));
-    double lambda0=Decode60(FVector(Lon_Deg, Lon_Min, Lon_Sec));
+    double phi0=Decode60(FVector(Lat_Deg, Lat_Min, Lat_Sec))*Pi_d/180;
+    double lambda0=Decode60(FVector(Lon_Deg, Lon_Min, Lon_Sec))*Pi_d/180;
     //UE_LOG(LogTemp,Warning, TEXT("GeoReference::InitializeGeoConv phi0=%f  lambda0=%f"), phi0, lambda0);
     Geo.BuildTable(phi0, lambda0, A,F,M0);
 }
