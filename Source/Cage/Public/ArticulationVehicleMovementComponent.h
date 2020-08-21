@@ -7,8 +7,8 @@
 #pragma once
 
 #include "Comm/Comm.h"
+#include "ActorCommMgr.h"
 #include "GameFramework/MovementComponent.h"
-#include "TickUtils.h"
 #include "ArticulationVehicleMovementComponent.generated.h"
 
 class UArticulationLinkComponent;
@@ -35,7 +35,7 @@ private:
  * 
  */
 UCLASS(meta = (BlueprintSpawnableComponent), ClassGroup = (Custom))
-class CAGE_API UArticulationVehicleMovementComponent : public UMovementComponent, public IPostPhysicsTickable
+class CAGE_API UArticulationVehicleMovementComponent : public UMovementComponent, public IActorCommClient
 {
   GENERATED_BODY()
 
@@ -54,16 +54,16 @@ public:
     float AccelEMACoeff = 0.7;
   UPROPERTY(EditDefaultsOnly, Category = "IMU", meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0"))
     float GyroEMACoeff = 0.9;
-  UPROPERTY(BlueprintReadOnly, Category = "SimVehicle")
-    FString RemoteAddress="255.255.255.255";
 protected:
 	UArticulationVehicleMovementComponent();
 
   void UpdateStatus(float DeltaTime);
   void FixupReferences();
   UArticulationLinkComponent *FindNamedArticulationLinkComponent(FName name);
-  void CommRecv();
-  void CommSend();
+  // IVehicleCommClient
+  bool GetMetadata(FString& MetaOut) override;
+  void CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>> &Json) override;
+  FString CommSend(const float DeltaTime) override;
 
   CommEndpointIO<FSimpleMessage> Comm;
 	FTransform PrevTransform;
@@ -113,9 +113,7 @@ public:
     void setRPM(float l, float r); // set motor speed [rpm]. Tire speed=motor speed/wheelReductionRatio.
 
   virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-  virtual void PostPhysicsTick(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void BeginPlay() override;
-  virtual void PostInitProperties() override;
 
   void RegisterComm();
   virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

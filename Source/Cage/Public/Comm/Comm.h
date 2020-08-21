@@ -83,6 +83,21 @@ public:
     return true;
   }
 
+  /*!
+   * 最も古いMessageを一つ受信する。受信したのちにまだキューに残るメッセージ数を返す
+   */
+  size_t RecvOne(MT *msg) {
+    if (Messages.Num() == 0)return 0;
+    *msg = Messages[0];
+    Messages.RemoveAt(0);
+    return Messages.Num();
+  }
+
+  size_t Num()
+  {
+    return Messages.Num();
+  }
+
   void HandleAnnounce(const FAnnounce &Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context) {
     if (Comm.IsValid())return;
     Comm = Context->GetSender();
