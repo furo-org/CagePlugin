@@ -27,7 +27,7 @@ import unreal
 import gdal
 import osr
 import os
-from PIL import Image, ImageTransform
+from PIL import Image, ImageTransform, ImageMath
 import numpy as np
 import math
 
@@ -41,13 +41,18 @@ projdir=os.path.join(sdir,"..","..","..","..")
 stepSize=10  # [cm] # landscale cell size
 zScale=10    # 100: +/-256 [m], 10: +/-25.6 [m]  1: 256 [cm]     # landscape z scale value
 zEnhance=1   # optional z scaling factor
+zOffset=None # None for z at GeoReference Actor
+zClipping=19.0 # Clip lowest height [m]   (None for no clipping)
+zClipping=-10.0 # Clip lowest height [m]   (None for no clipping)
 inputGeotiff=os.path.join(projdir,"GeotiffDEM.tif")
-outputHeightmap=os.path.join(projdir,"heightmap.png")
+inputGeotiff=os.path.join(projdir,"TC_P8_pede_surface_export.tif")
+inputGeotiff=os.path.join(projdir,"TC_P8_pede_surface_export-median20_geo.tif")
+outputHeightmap=os.path.join(projdir,"heightmap-premedian20.png")
 toUEScale=100.*128./zScale   # [m]->[cm]->[heightmap unit]
 
 LocalGeotiff=[
-  {"file":os.path.join(projdir,"TC_P8_pede_elev_divmask.tif"),
-  "offset":25.43}
+  {"file":os.path.join(projdir,"TC_P8_pede_elev_divmask-export.tif"),
+  "zoffset":25.43}
 ]
 
 # Utilities
@@ -100,10 +105,10 @@ class GeoTIFF:
     # Geotiff CS to Interface CS
     return (self.getBL((0,0)),self.getBL((self.gt.RasterXSize,self.gt.RasterYSize)))
 
-  def sanitizedBounds(self, bbox):
+  def sanitizedBounds(self, bbox=None):
     if bbox is None:
       bbox=self.getBBoxBL()
-    tl,br=bboxBL
+    tl,br=bbox
     bmin, bmax = tl[0], br[0]
     if bmin>bmax:
       bmin, bmax = bmax, bmin
@@ -119,6 +124,8 @@ class GeoTIFF:
     bmax=min(bbox[1],sbbox[1])
     lmin=max(bbox[2],sbbox[2])
     lmax=min(bbox[3],sbbox[3])
+    if lmax < lmin or bmax < bmin:   # No intersection
+      return None
     return ((bmax,lmin),(bmin,lmax))  # North-East, South-West
 
   def getUV(self, srcBL):
@@ -144,14 +151,10 @@ def getLandscapeBBox():
         hy=h.y
         theFirst=False
       else:
-        if(lx>l.x):
-          lx=l.x
-        if(ly>l.y):
-          ly=l.y
-        if(hx<h.x):
-          hx=h.x
-        if(hy<h.y):
-          hy=h.y
+        lx=min(lx,l.x)
+        ly=min(ly,l.y)
+        hx=max(hx,h.x)
+        hy=max(hy,h.y)
   print("Landscape bounding box: ({0}, {1}  -  {2}, {3})".format(lx,ly,hx,hy))
   print("Landscape size: {0} x {1}".format(hx-lx,hy-ly))
   size=(int((hx-lx)/stepSize+1),int((hy-ly)/stepSize+1))
@@ -174,7 +177,7 @@ lx,ly,hx,hy,size=getLandscapeBBox()
 ref=getGeoReference()
 
 text_label="Projecting coordinates"
-nFrames=4
+nFrames=5
 with unreal.ScopedSlowTask(nFrames, text_label) as slow_task:
   slow_task.make_dialog(True)
 
@@ -185,9 +188,9 @@ with unreal.ScopedSlowTask(nFrames, text_label) as slow_task:
   print("Reference Quad=tl:{0} bl:{1} br:{2} tr:{3}".format(tl, bl, br, tr))
   zo=ref.get_actor_location()
   zobl=tuple(map(Decode60,ref.get_bl(zo.x,zo.y)))
+  print("GeoReference in BL {0} {1}".format(zobl[0], zobl[1]))
   print("GeoReference in UE {0}".format(zo))
-  print("GeoReference in BL {0}".format(zobl))
-  #print(ref.get_xy(Encode60(zobl[0]),Encode60(zobl[1])))
+  print(ref.get_xy(Encode60(zobl[0]),Encode60(zobl[1])))
 
   gt=GeoTIFF(inputGeotiff)
   tluv=gt.getUV(tl)
@@ -198,7 +201,6 @@ with unreal.ScopedSlowTask(nFrames, text_label) as slow_task:
 
   print("Reference Quad on GeoTIFF image =tl:{0} bl:{1} br:{2} tr:{3}".format(tluv, bluv, bruv, truv))
   uvf=tluv+bluv+bruv+truv
-  uvs=tuple(int(round(f)) for f in uvf)
 
   tlbl=gt.getBL(tluv)
   blbl=gt.getBL(bluv)
@@ -208,25 +210,55 @@ with unreal.ScopedSlowTask(nFrames, text_label) as slow_task:
   print("Reference Quad returned =tl:{0} bl:{1} br:{2} tr:{3}".format(tlbl, blbl, brbl, trbl))
   print("Geotiff BBox = {0}".format(gt.getBBoxBL()))
 
-  slow_task.enter_progress_frame(1,"Transforming image region")
+  slow_task.enter_progress_frame(1,"Clipping z range")
+  print(gt.image.mode)
+  print(gt.image)
+  if zClipping is not None:
+    imageref=Image.new(gt.image.mode,gt.image.size,zClipping)
+    clippedimg=ImageMath.eval("max(a,b)",a=gt.image,b=imageref)
+    clippedimg.save(os.path.join(projdir,"Assets","clipped.tif"))
+  else:
+    clippedimg=gt.image
 
-  img=gt.image.transform(size,Image.QUAD,data=uvf,resample=Image.BILINEAR)
+  print("Geotiff bounds:{0}".format(gt.getBBoxBL()))
+  for lg in LocalGeotiff:
+    lgt=GeoTIFF(lg["file"])
+    print("Local Geotiff bounds:{0}".format(lgt.getBBoxBL()))
+    isc=gt.getIntersection(lgt.getBBoxBL())
+    print("{0} intersection {1} ".format(lg["file"],isc))
 
-  slow_task.enter_progress_frame(1,"Transforming height values")
+  if True:
+    slow_task.enter_progress_frame(1,"Transforming image region")
 
-  # scale to match landscape scaling, and offset to align to GeoReference actor
-  zov=gt.image.getpixel(zouv)
-  zos=32768-(zov*zEnhance-zo.z/100.)*toUEScale   # 32768: mid point (height=0)
-  iarrf=np.array(img.getdata())*toUEScale*zEnhance + zos
+    img=clippedimg.transform(size,Image.QUAD,data=uvf,resample=Image.BICUBIC)
+    img.save(os.path.join(projdir,"transform.tif"))
 
-  slow_task.enter_progress_frame(1,"Converting to 16bit grayscale")
-  # convert to uint16 using numpy
-  # PIL cannot handle this operation because of CLIP16() which limits each pixel value in -32768 to 32767.
-  # This clipping must be avoided because destination dtype is uint16.
-  iarrs=np.array(iarrf,dtype="uint16")
+    slow_task.enter_progress_frame(1,"Transforming height values")
 
-  slow_task.enter_progress_frame(1,"Saving as {0}".format(os.path.basename(outputHeightmap)))
+    # scale to match landscape scaling, and offset to align to GeoReference actor
+    if zOffset is None:
+      print(zouv)
+      zou=min(max(zouv[0],0),clippedimg.size[0])
+      zov=min(max(zouv[1],0),clippedimg.size[1])
+      zoff=clippedimg.getpixel((zou,zov))
+    else:
+      zoff=zOffset
+    zos=32768-(zoff*zEnhance-zo.z/100.)*toUEScale   # 32768: mid point (height=0)
+    iarrf=np.array(img.getdata(),dtype="float32")*toUEScale*zEnhance + zos
+    print(zov)
+    print(zos)
+    print(zEnhance)
+    print(toUEScale)
+    print(iarrf.dtype)
+    print(iarrf)
+    slow_task.enter_progress_frame(1,"Converting to 16bit grayscale")
+    # convert to uint16 using numpy
+    # PIL cannot handle this operation because of CLIP16() which limits each pixel value in -32768 to 32767.
+    # This clipping must be avoided because destination dtype is uint16.
+    iarrs=np.array(iarrf,dtype="uint16")
 
-  imgS=Image.frombuffer("I;16",img.size,iarrs.data, "raw", "I;16", 0, 1)
-  imgS.save(outputHeightmap)
-  print("Heightmap saved as {0}".format(outputHeightmap))
+    slow_task.enter_progress_frame(1,"Saving as {0}".format(os.path.basename(outputHeightmap)))
+
+    imgS=Image.frombuffer("I;16",img.size,iarrs.data, "raw", "I;16", 0, 1)
+    imgS.save(outputHeightmap)
+    print("Heightmap saved as {0}".format(outputHeightmap))
