@@ -12,9 +12,19 @@
 #include <stdbool.h>
 
 #include "GeometryCollectionSimulationCoreTypes.h"
-
+#include "Comm/Comm.h"
 
 #include "GeoReference.generated.h"
+
+USTRUCT()
+struct CAGE_API FGeoLocation
+{
+    GENERATED_USTRUCT_BODY()
+    UPROPERTY()
+    FVector Latitude;
+    UPROPERTY()
+    FVector Longitude;
+};
 
 class GeoConv
 {
@@ -53,7 +63,7 @@ private:
  * 
  */
 UCLASS()
-class CAGE_API AGeoReference : public ATargetPoint
+class CAGE_API AGeoReference : public AActor
 {
     GENERATED_BODY()
 public:
@@ -132,6 +142,7 @@ public:
 protected:
     void BeginPlay() override;
     GeoConv Geo;
+    CommEndpointIO<FSimpleMessage> Comm;
     double Decode60(const FVector &v)
     {
         double d=v.X;
