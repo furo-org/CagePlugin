@@ -266,7 +266,7 @@ Message の構造として期待するもの
           retmsg = FString::Printf(TEXT(
             "{\n"
             " \"Type\" : \"GetActorMeta\",\n"
-            " \"Result\" : {\n%s\n}\n"
+            " \"Result\" : %s\n"
             "}"
           ), *meta);
         }

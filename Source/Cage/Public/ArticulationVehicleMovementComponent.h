@@ -35,7 +35,7 @@ private:
  * 
  */
 UCLASS(meta = (BlueprintSpawnableComponent), ClassGroup = (Custom))
-class CAGE_API UArticulationVehicleMovementComponent : public UMovementComponent, public IActorCommClient
+class CAGE_API UArticulationVehicleMovementComponent : public UMovementComponent, public IActorCommClient, public IActorCommMetaSender
 {
   GENERATED_BODY()
 
@@ -49,27 +49,18 @@ public:
   // 1 or -1
   UPROPERTY(EditDefaultsOnly, Category = "Actuators")
     int RotationDirection = -1;
-  // EMA coefficient
-  UPROPERTY(EditDefaultsOnly, Category = "IMU", meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0"))
-    float AccelEMACoeff = 0.7;
-  UPROPERTY(EditDefaultsOnly, Category = "IMU", meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0"))
-    float GyroEMACoeff = 0.9;
 protected:
-	UArticulationVehicleMovementComponent();
+	UArticulationVehicleMovementComponent()=default;
 
-  void UpdateStatus(float DeltaTime);
   void FixupReferences();
   UArticulationLinkComponent *FindNamedArticulationLinkComponent(FName name);
-  // IVehicleCommClient
-  bool GetMetadata(FString& MetaOut) override;
-  void CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>> &Json) override;
-  FString CommSend(const float DeltaTime) override;
+  // IActorCommClient
+  virtual bool GetMetadata(UActorCommMgr *CommMgr, TSharedRef<FJsonObject> MetaOut) override;
+  virtual void CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>> &Json) override;
+  TSharedPtr<FJsonObject> CommSend(const float DeltaTime, UActorCommMgr *CommMgr) override;
 
-  CommEndpointIO<FSimpleMessage> Comm;
-	FTransform PrevTransform;
-  FVector PrevVelocity;
   bool IsReady;
-  FTickFunction SecondaryTick;
+  //FTickFunction SecondaryTick;
 
   UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "SimVehicle")
     float RefVel = 0;
@@ -93,28 +84,11 @@ protected:
   UPROPERTY(BlueprintReadOnly)
     float TreadWidth;
 
-	UPROPERTY(BlueprintReadOnly)
-		float YawRate;
-	UPROPERTY(BlueprintReadOnly)
-		float RollRate;
-	UPROPERTY(BlueprintReadOnly)
-		float PitchRate;
-	UPROPERTY(BlueprintReadOnly)
-		float Vel;
-  UPROPERTY(BlueprintReadOnly)
-    FVector RateGyro;
-  UPROPERTY(BlueprintReadOnly)
-    FVector Accel;
-
 public:
   UFUNCTION(BluePrintCallable, Category = "Movement")
     void setVW(float v, float w); // [cm/s], [rad/s]
   UFUNCTION(BluePrintCallable, Category = "Movement")
     void setRPM(float l, float r); // set motor speed [rpm]. Tire speed=motor speed/wheelReductionRatio.
 
-  virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void BeginPlay() override;
-
-  void RegisterComm();
-  virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 };

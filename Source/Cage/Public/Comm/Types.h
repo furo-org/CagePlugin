@@ -81,27 +81,66 @@ struct FNamedBinaryData
     TArray<uint8> Message;
 };
 
+// -------------------------------------------------------------------------------------
 
+// Component transform (in actors) representation for metadata 
+USTRUCT()
+struct CAGE_API FTransformReport
+{
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+  FVector Translation;
+  UPROPERTY(EditAnywhere)
+  FQuat Rotation;
+};
+
+// 6 axis inertial status used in SimpleIMU
+USTRUCT()
+struct CAGE_API FImuReport
+{
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+  FVector AngVel; //FVector(RollRate, PitchRate, YawRate),
+  UPROPERTY(EditAnywhere)
+  FVector Accel;
+};
+
+// Ground truth used in PosReporter
+USTRUCT()
+struct CAGE_API FActorPositionReport
+{
+  GENERATED_USTRUCT_BODY()
+  UPROPERTY(EditAnywhere)
+  FVector Position;  // Actor location
+  UPROPERTY(EditAnywhere)
+  FQuat Pose;        // Actor pose
+  UPROPERTY(EditAnywhere)
+  float Yaw;         // Yaw (Heading) component of Pose in degrees
+};
+
+//
+USTRUCT()
+struct CAGE_API FActorGeolocation
+{
+  GENERATED_BODY()
+  UPROPERTY(EditAnywhere)
+  FVector Lat;       // Latitude in X: Degrees, Y: Minutes, Z: Seconds 
+  UPROPERTY(EditAnywhere)
+  FVector Lon;       // Longutude in X: Degrees, Y: Minutes, Z: Seconds 
+};
+
+// Current status used in ArticulationMovementComponent
 USTRUCT()
 struct CAGE_API FVehicleStatus
 {
   GENERATED_USTRUCT_BODY()
   UPROPERTY(EditAnywhere)
-  FVector Position;
+  float LeftRpm;   // Left motor speed [rpm]
   UPROPERTY(EditAnywhere)
-  FQuat Pose; //"Pose"
-  UPROPERTY(EditAnywhere)
-  FVector AngVel; //FVector(RollRate, PitchRate, YawRate),
-  UPROPERTY(EditAnywhere)
-  FVector Accel;
-  UPROPERTY(EditAnywhere)
-  float Yaw;
-  UPROPERTY(EditAnywhere)
-  float LeftRpm;
-  UPROPERTY(EditAnywhere)
-  float RightRpm;
+  float RightRpm;  // Right motor speed [rpm]
 };
 
+#if 0
 USTRUCT()
 struct CAGE_API FActorPosition
 {
@@ -111,7 +150,9 @@ struct CAGE_API FActorPosition
   UPROPERTY(EditAnywhere)
   float Yaw;
 };
+#endif
 
+// Object tracker status
 USTRUCT()
 struct CAGE_API FTargetActorPosition
 {
