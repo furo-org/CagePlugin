@@ -158,13 +158,13 @@ void UArticulationVehicleMovementComponent::CommRecv(const float DeltaTime, cons
 
     WheelL.setVelocityTargetRpm(RefRpmLeft);
     WheelR.setVelocityTargetRpm(RefRpmRight);
-    CurRpmLeft = WheelL.getCurrentRpm() * WheelReductionRatio * RotationDirection;
-    CurRpmRight = WheelR.getCurrentRpm() * WheelReductionRatio * RotationDirection;
     //UE_LOG(LogTemp, Warning, TEXT("RefR: %f CurR: %f  RefL: %f CurL: %f"), RefRpmRight, CurRpmRight, RefRpmLeft, CurRpmLeft);
 }
 
 TSharedPtr<FJsonObject> UArticulationVehicleMovementComponent::CommSend(const float DeltaTime, UActorCommMgr *CommMgr)
 {
+    CurRpmLeft = WheelL.getCurrentRpm() * WheelReductionRatio * RotationDirection;
+    CurRpmRight = WheelR.getCurrentRpm() * WheelReductionRatio * RotationDirection;
     FVehicleStatus vs;
     vs.LeftRpm = CurRpmLeft;
     vs.RightRpm = CurRpmRight;
