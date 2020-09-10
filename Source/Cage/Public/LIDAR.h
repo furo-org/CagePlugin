@@ -68,22 +68,22 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Setup")
     void SetPeerAddress(const FString &address);
 
-  UPROPERTY(EditDefaultsOnly, Category = "Lidar")
+  UPROPERTY(EditAnywhere, Category = "Lidar")
     float MaxRange = 3000;     // range in [cm]
-  UPROPERTY(EditDefaultsOnly, Category = "Lidar")
+  UPROPERTY(EditAnywhere, Category = "Lidar")
     float MinRange = 50;       // effective minimum range in [cm]
-  UPROPERTY(EditDefaultsOnly, Category = "Lidar")
+  UPROPERTY(EditAnywhere, Category = "Lidar")
     float BodyRadius = 5;      // trace starting range in [cm]
 
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     float StartHAngle = -180.;  // scan start angle [deg]
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     float EndHAngle = 180.;     // scan end angle [deg]
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     float StepHAngle = 0.5;    // horizontal resolution [deg]
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     float Rpm = 1200;
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     float NoiseDistribution = 2; // Noise distribution add to distance response [cm]
 
   UPROPERTY(EditAnywhere)
@@ -92,6 +92,8 @@ public:
     float IntensityScalingFactor = 1.;
   UPROPERTY(EditAnywhere)
     float IntensityCutoff = 0.01;
+  UPROPERTY(EditAnywhere)
+    bool DistanceCompensation = true;
 protected:
 
   UPROPERTY(VisibleAnywhere,Category="Lidar")

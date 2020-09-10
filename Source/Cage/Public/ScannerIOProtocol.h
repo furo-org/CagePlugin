@@ -60,11 +60,11 @@ public:
 
   bool setRemoteIP(const FString &remoteIP) override;
 
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     int RemotePort = 65432;     // Remote Port Number
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     FString RemoteIP = "255.255.255.255";
-  UPROPERTY(EditDefaultsOnly)
+  UPROPERTY(EditAnywhere)
     bool ForceBroadcast=false;
   TSharedPtr<FInternetAddr> RemoteAddr;
   uint32 BroadcastIP;
@@ -109,11 +109,11 @@ public:
   void pushRange(TArray<uint16_t> &rangedata, TArray<float> & ranges, size_t pos);
 
   // Data granularity[mm] in packets. VLP-16: 2mm, VLP-32C: 4mm
-  UPROPERTY(EditDefaultsOnly, Category = "Setup")
+  UPROPERTY(EditAnywhere, Category = "Setup")
     float UnitRange=2;
   // ModelID vlp-16: 0x22(34), hdl-32: 0x21(33), vlp-32c: 0x28(40), vls-128: 0xa1(161)
-  UPROPERTY(EditDefaultsOnly, Category = "Setup")
+  UPROPERTY(EditAnywhere, Category = "Setup")
     uint8 ModelID = 0x22;
-  UPROPERTY(EditDefaultsOnly, Category = "Setup")
+  UPROPERTY(EditAnywhere, Category = "Setup")
   int IntensityDRange = 255;
 };

@@ -69,8 +69,8 @@ public:
     float StepHAngle;    // horizontal resolution [deg]
 //  UPROPERTY(EditDefaultsOnly, Category = "Setup")
     float Rpm;
-    UPROPERTY(EditDefaultsOnly, Category = "Setup")
+    UPROPERTY(EditAnywhere, Category = "Setup")
       TArray<float> VAngles = { -15,1, -13,3, -11,5, -9,7, -7,9, -5,11, -3,13, -1,15 }; // Channel allocation for VLP-16
-    UPROPERTY(EditDefaultsOnly, Category = "Setup")
+    UPROPERTY(EditAnywhere, Category = "Setup")
       TArray<float> HOffsets;
 };

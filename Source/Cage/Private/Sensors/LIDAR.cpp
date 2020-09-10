@@ -24,6 +24,13 @@ static TAutoConsoleVariable<int32> CVarVisualize(
   ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarAirAbsorb(
+  TEXT("cage.Lidar.AirAbsorb"),
+  0.001,
+  TEXT("Air absorbtion coefficient for intensity calculation.\n"),
+  ECVF_RenderThreadSafe
+);
+
 UIntensityResponseParams::UIntensityResponseParams(const FObjectInitializer& ObjectInitializer)
   :Super(ObjectInitializer),
   DefaultResponse  { 0.1, 0.5, 0.7, 0 }
@@ -117,6 +124,7 @@ void ALidar::Tick(float dt)
   // 
   float currentTime = GetWorld()->GetTimeSeconds();
   float deltaTime = currentTime - LastMeasureTime;
+  float airAbsorb = CVarAirAbsorb.GetValueOnGameThread();
 
 
   if (Scanner == nullptr)return;
@@ -206,7 +214,11 @@ void ALidar::Tick(float dt)
 		float f_retro = D_retro * (1 - F_s)*F_r;
 		float f_diffuse = albedo / PI *(1-F_s)*(1-F_r);
 		float range_m = range / 1000.;
-		intensity = (f_diffuse + f_specular + f_retro )*(1. / (range_m*range_m))*IntensityScalingFactor;
+		//intensity = (f_diffuse + f_specular + f_retro )*(1. / (range_m*range_m))*IntensityScalingFactor;
+        float eta_atm=exp((-range_m*2*airAbsorb));
+		intensity = (f_diffuse + f_specular + f_retro )*IntensityScalingFactor*eta_atm;
+        if(!DistanceCompensation)
+            intensity*=(1. / (range_m*range_m));
         intensity = FMath::Clamp<float>(intensity, 0., 1.);
         if (intensity < IntensityCutoff)
           range = 0;
