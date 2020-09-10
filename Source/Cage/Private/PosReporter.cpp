@@ -1,62 +1,54 @@
 // Copyright 2018 Tomoaki Yoshida<yoshida@furo.org>
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 
 #include "PosReporter.h"
-#include "MessageEndpointBuilder.h"
-#include "IMessageContext.h"
-#ifdef _WINDOWS
-#include "AllowWindowsPlatformTypes.h"
-#endif 
-#include "zmq_nt.hpp"
-#ifdef _WINDOWS
-#include "HideWindowsPlatformTypes.h"
-#endif
 #include "Comm/Types.h"
 #include "JsonUtilities/Public/JsonObjectConverter.h"
+#include "GeoReference.h"
+#include "EngineUtils.h"
 
-
-// Sets default values for this component's properties
-UPosReporter::UPosReporter()
-{
-    // Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
-    // off to improve performance if you don't need them.
-    PrimaryComponentTick.bCanEverTick = true;
-
-    // ...
-}
-
-
-// Called when the game starts
 void UPosReporter::BeginPlay()
 {
     Super::BeginPlay();
-
-    UE_LOG(LogTemp, Warning, TEXT("BeginPlay "));
-    Comm.setup(GetOwner()->GetFName());
+    GeoReference=nullptr;
 }
 
-void UPosReporter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+TSharedPtr<FJsonObject> UPosReporter::CommSend(const float DeltaTime, UActorCommMgr *CommMgr)
 {
-    Comm.tearDown();
-}
+    FActorPositionReport rep;
+    //const auto Trans=GetOwner()->GetActorTransform();
+    const auto Trans=CommMgr->GetBaseTransform();
 
+    rep.Position = Trans.GetLocation(); //GetOwner()->GetActorLocation();
+    rep.Pose = Trans.GetRotation();
+    rep.Yaw = rep.Pose.Euler().Z;
 
-// Called every frame
-void UPosReporter::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+    auto jo=FJsonObjectConverter::UStructToJsonObject(rep);
 
-    FVector loc = GetOwner()->GetActorLocation();
-    FRotator rot = GetOwner()->GetActorRotation();
-
-    FNamedMessage* msg(new FNamedMessage);
-    FActorPosition rep;
-    rep.Position = loc;
-    rep.Yaw = rot.Yaw;
-    FJsonObjectConverter::UStructToJsonObjectString(rep, msg->Message);
-    msg->Name = GetOwner()->GetName();
-    Comm.Send(msg);
-    //UE_LOG(LogTemp, Warning, TEXT("PositionReporter: Tick "));
+    //GeoReferenceがあればその参照を取得
+    if(SendGeoLocation)
+    {
+        if( !IsValid(GeoReference))
+        {
+            for(TActorIterator<AGeoReference> itr(GetWorld());itr;++itr)
+            {
+                UE_LOG(LogTemp, Verbose, TEXT("UPosReporter[%s]: AGeoReference found"),*GetOwner()->GetName());
+                GeoReference=*itr;
+            }
+        
+        }
+        if(IsValid(GeoReference))
+        {
+            FActorGeolocation geo;
+            double x=rep.Position.X;
+            double y=rep.Position.Y;
+            GeoReference->GetBL(x,y,geo.Lat,geo.Lon);
+            auto gj=FJsonObjectConverter::UStructToJsonObject(geo);
+            jo->Values.Append(gj->Values);
+        }
+    }
+    return jo;
 }

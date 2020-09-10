@@ -1,7 +1,8 @@
 // Copyright 2018 Tomoaki Yoshida<yoshida@furo.org>
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 
 #include "ArticulationVehicleMovementComponent.h"
 #include "ArticulationLinkComponent.h"
@@ -28,10 +29,6 @@ float FWheelController::getCurrentRpm()
 
 // ------------------------------------------------------------
 
-UArticulationVehicleMovementComponent::UArticulationVehicleMovementComponent()
-{
-}
-
 void UArticulationVehicleMovementComponent::setVW(float v, float w)
 {
     if (!IsReady)return;
@@ -48,85 +45,6 @@ void UArticulationVehicleMovementComponent::setRPM(float l, float r)
     if (!IsReady)return;
     RefRpmRight = r / WheelReductionRatio * RotationDirection;
     RefRpmLeft = l / WheelReductionRatio * RotationDirection;
-}
-
-void UArticulationVehicleMovementComponent::PostInitProperties()
-{
-    Super::PostInitProperties();
-    if (!IsTemplate() && PostPhysicsTickFunction.bCanEverTick)
-    {
-        IPostPhysicsTickable::EnablePostPhysicsTickHelper(this);
-    }
-}
-
-void UArticulationVehicleMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType,
-                                                          FActorComponentTickFunction* ThisTickFunction)
-{
-    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-    if (!ensure(WheelL.Wheel != nullptr))return;
-    if (!ensure(WheelR.Wheel != nullptr))return;
-
-    CommRecv();
-
-    WheelL.setVelocityTargetRpm(RefRpmLeft);
-    WheelR.setVelocityTargetRpm(RefRpmRight);
-    CurRpmLeft = WheelL.getCurrentRpm() * WheelReductionRatio * RotationDirection;
-    CurRpmRight = WheelR.getCurrentRpm() * WheelReductionRatio * RotationDirection;
-    //UE_LOG(LogTemp, Warning, TEXT("RefR: %f CurR: %f  RefL: %f CurL: %f"), RefRpmRight, CurRpmRight, RefRpmLeft, CurRpmLeft);
-
-#if 0
-  UE_LOG(LogTemp, Warning, TEXT("V[Ref:%f Cur:%f] W[Ref:%f Cur:%f] L[Ref:%f Cur:%s] R[Ref:%f Cur:%s]"), 
-    RefVel, Vel, RefOmega, YawRate,
-    RefRpmLeft,*(WheelL.Wheel->Link.GetAngularVelocity().ToString()),
-    RefRpmRight, *(WheelR.Wheel->Link.GetAngularVelocity().ToString()));
-  UE_LOG(LogTemp, Warning, TEXT("[%s] R: ref=%f cur=%f  L: ref=%f cur=%f"), *(this->GetName()),
-    RefRpmRight, CurRpmRight,
-    RefRpmLeft, CurRpmLeft);
-#endif
-}
-
-void UArticulationVehicleMovementComponent::PostPhysicsTick(float DeltaTime, enum ELevelTick TickType,
-                                                            FActorComponentTickFunction* ThisTickFunction)
-{
-    UpdateStatus(DeltaTime);
-    CommSend();
-}
-
-void UArticulationVehicleMovementComponent::UpdateStatus(float DeltaTime)
-{
-    //auto vehicleRoot = Cast<UPrimitiveComponent>(GetOwner()->GetRootComponent());
-    auto* vehicleRoot = Cast<UArticulationLinkComponent>(GetOwner()->GetRootComponent());
-    FTransform currentTransform = vehicleRoot->GetComponentTransform();
-    FTransform deltaTransform = currentTransform.GetRelativeTransform(PrevTransform);
-
-    auto deltaRotation = deltaTransform.GetRotation().Euler() / DeltaTime;
-    RateGyro = GyroEMACoeff * deltaRotation + (1 - GyroEMACoeff) * RateGyro;
-    float transformPitch = deltaRotation.Y;
-    float transformRoll = deltaRotation.X;
-    float transformYaw = deltaRotation.Z;
-
-    PitchRate = transformPitch;
-    RollRate = transformRoll;
-    YawRate = transformYaw;
-
-    YawAngle = currentTransform.GetRotation().Euler().Z;
-    Pose = currentTransform.GetRotation();
-
-    PrevTransform = currentTransform;
-    auto velVec = GetOwner()->GetVelocity();
-    Vel = FVector::DotProduct(velVec, GetOwner()->GetActorForwardVector());
-    auto accelVec = (velVec - PrevVelocity) / DeltaTime;
-    auto accel = currentTransform.GetRotation().UnrotateVector(accelVec + FVector(0, 0, 980));
-    Accel = AccelEMACoeff * accel + (1.0 - AccelEMACoeff) * Accel;
-    //UE_LOG(LogTemp, Warning, TEXT("[%s] dt: %f Vel: %f %f %f   Accel: %f %f %f" (EMA:%f), *(this->GetName()), DeltaTime, velVec.X, velVec.Y, velVec.Z, Accel.X, Accel.Y, Accel.Z, AccelEMACoeff);
-    PrevVelocity = velVec;
-#if 0
-  FVector lin, ang;
-  vehicleRoot->GetWorldVelocity(lin, ang);
-  UE_LOG(LogTemp, Warning, TEXT("[%s] lin: %f %f %f   ang: %f %f %f"),*(this->GetName()),
-    lin.X, lin.Y, lin.Z,  ang.X, ang.Y, ang.Z);
-#endif
 }
 
 void UArticulationVehicleMovementComponent::FixupReferences()
@@ -163,7 +81,6 @@ void UArticulationVehicleMovementComponent::FixupReferences()
                *(this->GetName()), *(WheelR.Wheel->GetName()), WheelR.Perimeter, *(WheelL.Wheel->GetName()),
                WheelL.Perimeter);
         IsReady = true;
-        RegisterComm();
     }
     else
     {
@@ -205,68 +122,54 @@ UArticulationLinkComponent* UArticulationVehicleMovementComponent::FindNamedArti
     return nullptr;
 }
 
-void UArticulationVehicleMovementComponent::CommRecv()
+bool UArticulationVehicleMovementComponent::GetMetadata(UActorCommMgr *CommMgr, TSharedRef<FJsonObject> MetaOut)
 {
-    FSimpleMessage rcv;
-    if (Comm.RecvLatest(&rcv))
-    {
-        TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(*rcv.Message);
-        TSharedPtr<FJsonObject> Jo = MakeShared<FJsonObject>();
-        FJsonSerializer::Deserialize(JsonReader, Jo);
-        FString Type = Jo->GetStringField("CmdType");
+    if(!IsReady) return false;
 
-        //FString type;
-        //std::string str(TCHAR_TO_UTF8(*rcv.Message));
-        //std::istringstream buffer(str);
-        //cereal::JSONInputArchive ar(buffer);
-        //ar(cereal::make_nvp("CmdType", type));
+    MetaOut->SetNumberField("TreadWidth",TreadWidth);
+    MetaOut->SetNumberField("ReductionRatio",WheelReductionRatio);
+    MetaOut->SetNumberField("WheelPerimeterL",WheelL.Perimeter);
+    MetaOut->SetNumberField("WheelPerimeterR",WheelR.Perimeter);
+    return true;
+}
+
+void UArticulationVehicleMovementComponent::CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>> &Json)
+{
+    // Process all requests. The newest request over write older ones.
+    for(auto &Jo: Json)
+    {
+        FString Type = Jo->GetStringField("CmdType");
         if (Type == "VW")
         {
             float v = Jo->GetNumberField("V");
             float w = Jo->GetNumberField("W");
-            //ar(cereal::make_nvp("V", v));
-            //ar(cereal::make_nvp("W", w));
-            //UE_LOG(LogTemp, Warning, TEXT("VWCmd V:%f W:%f"), v, w);
             setVW(v, w); // cm/s, deg/s
         }
         if (Type == "RPM")
         {
             float r = Jo->GetNumberField("R");
             float l = Jo->GetNumberField("L");;
-            //ar(cereal::make_nvp("R", r));
-            //ar(cereal::make_nvp("L", l));
-            //UE_LOG(LogTemp, Warning, TEXT("RpmCmd R:%f L:%f"), r, l);
             setRPM(l, r);
         }
-        RemoteAddress = rcv.PeerAddress;
     }
+
+    if (!ensure(WheelL.Wheel != nullptr))return;
+    if (!ensure(WheelR.Wheel != nullptr))return;
+
+    WheelL.setVelocityTargetRpm(RefRpmLeft);
+    WheelR.setVelocityTargetRpm(RefRpmRight);
+    //UE_LOG(LogTemp, Warning, TEXT("RefR: %f CurR: %f  RefL: %f CurL: %f"), RefRpmRight, CurRpmRight, RefRpmLeft, CurRpmLeft);
 }
 
-void UArticulationVehicleMovementComponent::CommSend()
+TSharedPtr<FJsonObject> UArticulationVehicleMovementComponent::CommSend(const float DeltaTime, UActorCommMgr *CommMgr)
 {
-    FVector loc = GetOwner()->GetActorLocation();
-    FRotator rot = GetOwner()->GetActorRotation();
-
-    FNamedMessage* msg(new FNamedMessage);
+    CurRpmLeft = WheelL.getCurrentRpm() * WheelReductionRatio * RotationDirection;
+    CurRpmRight = WheelR.getCurrentRpm() * WheelReductionRatio * RotationDirection;
     FVehicleStatus vs;
-    vs.Position = loc;
-    vs.Pose = Pose;
-    vs.AngVel = RateGyro; //FVector(RollRate, PitchRate, YawRate),
-    vs.Accel = Accel;
-    vs.Yaw = rot.Yaw;
     vs.LeftRpm = CurRpmLeft;
     vs.RightRpm = CurRpmRight;
-    FJsonObjectConverter::UStructToJsonObjectString(vs, msg->Message);
-#if 0
     auto jo=FJsonObjectConverter::UStructToJsonObject(vs);
-    UE_LOG(LogTemp, Warning, TEXT("AVMC: reporting [%s]"), *msg->Message);
-    for(auto &Elem: jo->Values)
-    {
-        UE_LOG(LogTemp,Warning,TEXT("Key : %s"),*Elem.Key);
-    }
-#endif
-    msg->Name = GetOwner()->GetName();
-    Comm.Send(msg);
+    return jo;
 }
 
 void UArticulationVehicleMovementComponent::BeginPlay()
@@ -278,34 +181,4 @@ void UArticulationVehicleMovementComponent::BeginPlay()
     RefRpmLeft = 0;
     RefRpmRight = 0;
     FixupReferences();
-}
-
-void UArticulationVehicleMovementComponent::RegisterComm()
-{
-    FString meta;
-    {
-        meta = FString::Printf(TEXT(
-            "\"TreadWidth\":%f,\n"
-            "\"ReductionRatio\":%f,\n"
-            "\"WheelPerimeterL\":%f,\n"
-            "\"WheelPerimeterR\":%f\n"),
-                               TreadWidth,
-                               WheelReductionRatio,
-                               WheelL.Perimeter,
-                               WheelR.Perimeter
-        );
-    }
-    Comm.setup(GetOwner()->GetFName(), "Vehicle", meta);
-
-    for (TActorIterator<ACommActor> commActorItr(GetWorld()); commActorItr; ++commActorItr)
-    {
-        AddTickPrerequisiteActor(*commActorItr);
-        break;
-    }
-}
-
-void UArticulationVehicleMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-    Super::EndPlay(EndPlayReason);
-    Comm.tearDown();
 }

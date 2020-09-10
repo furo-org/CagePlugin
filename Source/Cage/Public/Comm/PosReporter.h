@@ -10,27 +10,31 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Comm/Comm.h"
+#include "ActorCommMgr.h"
+#include "GeoReference.h"
+
 #include "PosReporter.generated.h"
+
+class AGeoReference;
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class UPosReporter : public UActorComponent
+class UPosReporter : public UActorComponent, public IActorCommClient
 {
 	GENERATED_BODY()
 
 public:	
 	// Sets default values for this component's properties
-	UPosReporter();
+	UPosReporter()=default;
+	virtual ~UPosReporter()=default;
 
-protected:
-	// Called when the game starts
+public:
+
 	virtual void BeginPlay() override;
-  virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
+	virtual TSharedPtr<FJsonObject> CommSend(const float DeltaTime, UActorCommMgr *CommMgr) override;
 protected:
-  CommEndpointOut Comm;
+	UPROPERTY(EditAnywhere)
+	bool SendGeoLocation=false;  // Send Latitude and Longitude corresponding to x, y
+
+	AGeoReference *GeoReference=nullptr;
 };

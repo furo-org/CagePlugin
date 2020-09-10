@@ -7,6 +7,9 @@
 #include "GeoReference.h"
 #include <array>
 
+
+#include "ActorCommMgr.h"
+#include "JsonObjectConverter.h"
 #include "MathUtil.h"
 
 void AGeoReference::InitializeGeoConv()
@@ -20,6 +23,21 @@ void AGeoReference::InitializeGeoConv()
 void AGeoReference::BeginPlay()
 {
     InitializeGeoConv();
+    TSharedRef<FJsonObject> meta=MakeShared<FJsonObject>();
+
+    FTransformReport rep;
+    rep.Translation=GetTransform().GetTranslation();
+    rep.Rotation = GetTransform().GetRotation();
+    meta->SetObjectField("Transform",FJsonObjectConverter::UStructToJsonObject(rep));
+
+    FGeoLocation loc;
+    loc.Latitude=FVector(Lat_Deg, Lat_Min, Lat_Sec);
+    loc.Longitude=FVector(Lon_Deg, Lon_Min, Lon_Sec);
+    meta->SetObjectField("GeoLocation",FJsonObjectConverter::UStructToJsonObject(loc));
+
+    FString Metadata;
+    JsonObjectToFString(meta,Metadata);
+    Comm.setup(GetFName(), "GeoReference", Metadata);
 }
 
 FString dtofs(const char *fmt, const double v)
