@@ -19,6 +19,8 @@ class UActorCommClient : public UInterface {
 public:
 };
 
+class UActorCommMgr;
+
 class IActorCommClient
 {
   GENERATED_BODY()
