@@ -7,19 +7,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Components/SceneComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "ActorCommMgr.h"
-#include "SimpleIMU.generated.h"
+#include "StaticMeshIMU.generated.h"
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class CAGE_API USimpleIMU : public USceneComponent, public IActorCommClient, public IActorCommMetaSender
+//class CAGE_API USimpleIMU : public USceneComponent, public IActorCommClient, public IActorCommMetaSender
+class CAGE_API UStaticMeshIMU : public UStaticMeshComponent, public IActorCommClient, public IActorCommMetaSender
 {
 	GENERATED_BODY()
 
 public:	
 	// Sets default values for this component's properties
-	USimpleIMU()=default;
+	UStaticMeshIMU()=default;
 
 	UPROPERTY(BlueprintReadOnly)
 	float YawRate;

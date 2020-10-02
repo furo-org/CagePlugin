@@ -4,11 +4,11 @@
 * file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-#include "SimpleIMU.h"
+#include "StaticMeshIMU.h"
 #include "JsonUtilities/Public/JsonObjectConverter.h"
 
 // Called when the game starts
-void USimpleIMU::BeginPlay()
+void UStaticMeshIMU::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -17,7 +17,7 @@ void USimpleIMU::BeginPlay()
 	PrevVelocity=GetOwner()->GetVelocity();
 }
 
-bool USimpleIMU::GetMetadata(UActorCommMgr *CommMgr, TSharedRef<FJsonObject> MetaOut)
+bool UStaticMeshIMU::GetMetadata(UActorCommMgr *CommMgr, TSharedRef<FJsonObject> MetaOut)
 {
 	auto trans=GetComponentTransform().GetRelativeTransform(CommMgr->GetBaseTransform());
 	FTransformReport rep;
@@ -27,11 +27,11 @@ bool USimpleIMU::GetMetadata(UActorCommMgr *CommMgr, TSharedRef<FJsonObject> Met
 	return true;
 }
 
-void USimpleIMU::CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>>& Json)
+void UStaticMeshIMU::CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>>& Json)
 {
 }
 
-TSharedPtr<FJsonObject> USimpleIMU::CommSend(const float DeltaTime, UActorCommMgr *CommMgr)
+TSharedPtr<FJsonObject> UStaticMeshIMU::CommSend(const float DeltaTime, UActorCommMgr *CommMgr)
 {
 	FTransform currentTransform = GetComponentTransform();
 	FTransform deltaTransform = currentTransform.GetRelativeTransform(PrevTransform);
@@ -47,13 +47,19 @@ TSharedPtr<FJsonObject> USimpleIMU::CommSend(const float DeltaTime, UActorCommMg
 	YawRate = transformYaw;
 
 	PrevTransform = currentTransform;
-	auto velVec = GetOwner()->GetVelocity();
-	Vel = FVector::DotProduct(velVec, GetOwner()->GetActorForwardVector());
+	FVector velVec;
+	if(IsSimulatingPhysics()){
+		velVec = GetComponentVelocity();
+	}else{
+		velVec=deltaTransform.GetTranslation() / DeltaTime;
+	}
 	auto accelVec = (velVec - PrevVelocity) / DeltaTime;
 	auto accel = currentTransform.GetRotation().UnrotateVector(accelVec + FVector(0, 0, -GetWorld()->GetGravityZ()));
 	Accel = AccelEMACoeff * accel + (1.0 - AccelEMACoeff) * Accel;
 	//UE_LOG(LogTemp, Warning, TEXT("[%s] dt: %f Vel: %f %f %f   Accel: %f %f %f" (EMA:%f), *(this->GetName()), DeltaTime, velVec.X, velVec.Y, velVec.Z, Accel.X, Accel.Y, Accel.Z, AccelEMACoeff);
 	PrevVelocity = velVec;
+	//UE_LOG(LogTemp, Warning, TEXT("[%s] Physics enabled"), *(this->GetName()));
+
 #if 0
 	FVector lin, ang;
 	vehicleRoot->GetWorldVelocity(lin, ang);
