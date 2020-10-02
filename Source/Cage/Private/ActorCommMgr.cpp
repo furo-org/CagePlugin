@@ -97,7 +97,7 @@ void UActorCommMgr::PrePhysicsTick(float DeltaTime, ELevelTick TickType,
 		TSharedPtr<FJsonObject> Jo = MakeShared<FJsonObject>();
 		FJsonSerializer::Deserialize(JsonReader, Jo);
 		json.Add(Jo);
-		UE_LOG(LogTemp, Warning, TEXT("CommRecv: %s"),*rcv.Message);
+		//UE_LOG(LogTemp, Warning, TEXT("CommRecv: %s"),*rcv.Message);
 	}
 	// Deliver ActorCmd messages to components
 	for(const auto cli:CommClients)
