@@ -17,10 +17,12 @@
 #include "Networking.h"
 #include "Components/ActorComponent.h"
 #include "Comm/Comm.h"
+#include "ActorCommMgrAPI.h"
 #include <array>
 #include "ScannerIOProtocol.generated.h"
 
-    UCLASS(ClassGroup = "Sensors", BluePrintable) class UScannerIOProtocol : public UActorComponent {
+UCLASS(ClassGroup = "Sensors", BluePrintable)
+class UScannerIOProtocol : public UActorComponent, public IActorCommListener {
   GENERATED_BODY()
 
 protected:
@@ -40,6 +42,10 @@ public:
   virtual void sendPacket() {};
 
   virtual bool setRemoteIP(const FString &remoteIP) { return false; };
+
+  virtual void RemoteAddressChanged(const FString& Address) override {
+      setRemoteIP(Address);
+  };
 
   float EndHAngle;     // scan end angle [deg]
   float StartHAngle;     // scan end angle [deg]

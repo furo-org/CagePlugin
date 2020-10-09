@@ -10,6 +10,18 @@
 #include "CommActor.h"
 #include "JsonObjectConverter.h"
 #include "JsonSerializer.h"
+#include "Comm/Comm.h"
+
+class UActorCommMgr::FImpl{
+	public:
+	CommEndpointIO<FSimpleMessage> Comm;
+	TArray<IActorCommClient*> CommClients;
+	TArray<IActorCommListener*> CommListeners;
+	TSharedPtr<FJsonObject> ActorMetadata;
+	AActor *ParentActor=nullptr;
+	bool IsReady=false;
+};
+
 
 // Sets default values for this component's properties
 UActorCommMgr::UActorCommMgr()
@@ -21,34 +33,47 @@ UActorCommMgr::UActorCommMgr()
 void UActorCommMgr::BeginPlay()
 {
 	Super::BeginPlay();
+	D=new FImpl();
 	UE_LOG(LogTemp, Warning, TEXT("ActorCommMgr: BeginPlay"));
-	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UActorCommMgr::InitializeMetadata);
+	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UActorCommMgr::Initialize);
 }
 
-void UActorCommMgr::InitializeMetadata()
+void UActorCommMgr::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	ActorMetadata.Empty();
-	CommClients.Empty();
-	TSharedRef<FJsonObject> unifiedmeta=MakeShared<FJsonObject>();
-	for(const auto c:GetOwner()->GetComponents())
+	Super::EndPlay(EndPlayReason);
+	if(D!=nullptr)
 	{
-		auto cli=Cast<IActorCommMetaSender>(c);
-		if(!cli) continue;
-		UE_LOG(LogTemp,Verbose,TEXT("[%s] is VehicleCommClient"),*c->GetName());
-		TSharedRef<FJsonObject> meta=MakeShared<FJsonObject>();
-		auto ok=cli->GetMetadata(this, meta);
-		if(!ok)
+		delete D;
+		D=nullptr;		
+	}
+}
+
+void UActorCommMgr::Initialize()
+{
+	D->ParentActor=GetOwner()->GetAttachParentActor();
+	if(D->ParentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] parentActor=%s"),*GetOwner()->GetName(), *D->ParentActor->GetName());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[%s] GetAttachParentActor returns nullptr"),*GetOwner()->GetName());
+	}
+
+	if(!CollectMetadata())
+	{
+		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UActorCommMgr::Initialize);
+		return;
+	}
+	if(D->ParentActor==nullptr)
+	{
+		FString metastr;
+		if(D->ActorMetadata.IsValid())
 		{
-			GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UActorCommMgr::InitializeMetadata);
-			return;
-		}
-		if(meta->Values.Num())
-		{
-			unifiedmeta->Values.Append(meta->Values);
+			JsonObjectToFString(D->ActorMetadata.ToSharedRef(), metastr);
+			D->Comm.setup(GetOwner()->GetFName(), "Vehicle", metastr);
 		}
 	}
-	JsonObjectToFString(unifiedmeta,ActorMetadata);
-	Comm.setup(GetOwner()->GetFName(), "Vehicle", ActorMetadata);
 
 	for (TActorIterator<ACommActor> commActorItr(GetWorld()); commActorItr; ++commActorItr)
 	{
@@ -56,11 +81,11 @@ void UActorCommMgr::InitializeMetadata()
 		break;
 	}
 	// Enable Both PrePhysicsTick and PostPhysicsTick 
-	if (!IsTemplate() && PostPhysicsTickFunction.bCanEverTick) {
+	if (!IsTemplate() && PostPhysicsTickFunction.bCanEverTick && D->ParentActor==nullptr) {
 		UE_LOG(LogTemp, VeryVerbose, TEXT("ActorCommMgr: Enabling PostPhysicsTick"));
 		IPostPhysicsTickable::EnablePostPhysicsTick(this);
 	}
-	if (!IsTemplate() && PrePhysicsTickFunction.bCanEverTick) {
+	if (!IsTemplate() && PrePhysicsTickFunction.bCanEverTick && D->ParentActor==nullptr) {
 		UE_LOG(LogTemp, VeryVerbose, TEXT("ActorCommMgr: Enabling PrePhysicsTick"));
 		IPrePhysicsTickable::EnablePrePhysicsTick(this);
 	}
@@ -70,7 +95,8 @@ void UActorCommMgr::InitializeMetadata()
 	{
 		auto cli=Cast<IActorCommClient>(c);
 		if(!cli) continue;
-		CommClients.Add(cli);
+		if(cli==this) continue;
+		D->CommClients.Add(cli);
 	}
 
 	// Enumerate IActorCommListener components
@@ -78,8 +104,34 @@ void UActorCommMgr::InitializeMetadata()
 	{
 		auto cli=Cast<IActorCommListener>(c);
 		if(!cli) continue;
-		CommListeners.Add(cli);
+		if(cli==this) continue;
+		D->CommListeners.Add(cli);
 	}
+	D->IsReady=true;
+}
+
+bool UActorCommMgr::CollectMetadata()
+{
+	D->CommClients.Empty();
+	TSharedRef<FJsonObject> unifiedmeta=MakeShared<FJsonObject>();
+	for(const auto c:GetOwner()->GetComponents())
+	{
+		auto cli=Cast<IActorCommMetaSender>(c);
+		if(!cli) continue;
+		if(cli==this) continue;
+		TSharedRef<FJsonObject> meta=MakeShared<FJsonObject>();
+		auto ok=cli->GetMetadata(this, meta);
+		if(!ok)
+		{
+			return false;
+		}
+		if(meta->Values.Num())
+		{
+			unifiedmeta->Values.Append(meta->Values);
+		}
+	}
+	D->ActorMetadata=unifiedmeta;
+	return true;
 }
 
 void UActorCommMgr::PrePhysicsTick(float DeltaTime, ELevelTick TickType,
@@ -87,12 +139,12 @@ void UActorCommMgr::PrePhysicsTick(float DeltaTime, ELevelTick TickType,
 {
 	FSimpleMessage rcv;
 	TArray<TSharedPtr<FJsonObject>> json;
-	if(Comm.Num()==0)return;
+	if(D->Comm.Num()==0)return;
 
 	// Receive all ActorCmd messages and merge them 
-	while (Comm.Num()!=0)
+	while (D->Comm.Num()!=0)
 	{
-		Comm.RecvOne(&rcv);
+		D->Comm.RecvOne(&rcv);
 		TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(*rcv.Message);
 		TSharedPtr<FJsonObject> Jo = MakeShared<FJsonObject>();
 		FJsonSerializer::Deserialize(JsonReader, Jo);
@@ -100,7 +152,7 @@ void UActorCommMgr::PrePhysicsTick(float DeltaTime, ELevelTick TickType,
 		//UE_LOG(LogTemp, Warning, TEXT("CommRecv: %s"),*rcv.Message);
 	}
 	// Deliver ActorCmd messages to components
-	for(const auto cli:CommClients)
+	for(const auto cli:D->CommClients)
 	{
 		cli->CommRecv(DeltaTime, json);
 	}
@@ -108,10 +160,7 @@ void UActorCommMgr::PrePhysicsTick(float DeltaTime, ELevelTick TickType,
 	if(RemoteAddress != rcv.PeerAddress)
 	{
 		RemoteAddress = rcv.PeerAddress;
-		for(const auto cli: CommListeners)
-		{
-			cli->RemoteAddressChanged(RemoteAddress);
-		}
+		RemoteAddressChanged(rcv.PeerAddress);
 	}
 }
 
@@ -120,16 +169,19 @@ void UActorCommMgr::PostPhysicsTick(float DeltaTime, ELevelTick TickType,
 {
 	// CommClientのメッセージ群をひとつのjsonにまとめる
 	TSharedRef<FJsonObject> json = MakeShared<FJsonObject>();
-	for(const auto cli:CommClients)
+	for(const auto cli: D->CommClients)
 	{
 		auto j=cli->CommSend(DeltaTime,this);
-		json->Values.Append(j->Values);
+		if(j)
+		{
+			json->Values.Append(j->Values);
+		}			
 	}
 	FNamedMessage *msg( new FNamedMessage);
 	msg->Name = GetOwner()->GetName();
 	if(JsonObjectToFString(json,msg->Message))
 	{
-		Comm.Send(msg);
+		D->Comm.Send(msg);
 	}
 }
 
@@ -140,4 +192,20 @@ FTransform UActorCommMgr::GetBaseTransform()
 	    UE_LOG(LogTemp, Error, TEXT("UActorCommMgr[%s]::GetBaseTransform: No base socket named [%s] found"),*BaseSocket.ToString());
     }
     return GetOwner()->GetRootComponent()->GetSocketTransform(BaseSocket);
+}
+
+bool UActorCommMgr::GetMetadata(UActorCommMgr* CommMgr, TSharedRef<FJsonObject> MetaOut)
+{
+	if(!D->IsReady) return false;
+	if(!D->ActorMetadata.IsValid()) return false;
+	MetaOut=D->ActorMetadata.ToSharedRef();
+	return true;
+}
+
+void UActorCommMgr::RemoteAddressChanged(const FString& Address)
+{
+	for(const auto cli: D->CommListeners)
+	{
+		cli->RemoteAddressChanged(Address);
+	}
 }

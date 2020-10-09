@@ -14,12 +14,21 @@
  *   Child Actor Component with communication capability with ActorCommMgr Component 
  */
 UCLASS(ClassGroup=Utility, hidecategories=(Object,LOD,Physics,Lighting,TextureStreaming,Activation,"Components|Activation",Collision), meta=(BlueprintSpawnableComponent))
-class CAGE_API USensorActorMount : public UChildActorComponent, public IActorCommListener, public IActorCommMetaSender
+class CAGE_API USensorActorMount : public UChildActorComponent, public IActorCommListener, public IActorCommMetaSender, public IActorCommClient
 {
 	GENERATED_BODY()
 	public:
 
+	virtual void BeginPlay() override;
+
 	virtual bool GetMetadata(UActorCommMgr *CommMgr, TSharedRef<FJsonObject> MetaOut) override;
 
 	virtual void RemoteAddressChanged(const FString& Address) override;
+
+
+	virtual void CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>>& RcvJson) override;
+	virtual TSharedPtr<FJsonObject> CommSend(const float DeltaTime, UActorCommMgr* CommMgr) override;
+	
+	protected:
+	UActorCommMgr *ChildCommMgr=nullptr;
 };
