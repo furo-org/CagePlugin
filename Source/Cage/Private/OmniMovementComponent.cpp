@@ -17,16 +17,23 @@ void UOmniMovementComponent::BeginPlay()
     Mt=std::mt19937(Rd());
     Dist=std::normal_distribution<>(0.,1.);
     CurrentAngVel=0;
+    RandomAngularVelBias=Dist(Mt)*MaxRandomAngularVelocityBias;
+    RandomAngularVelScale=Dist(Mt)*MaxRandomAngularVelocityScale;
+    RandomVelocityBias=FVector2D(Dist(Mt),Dist(Mt))*MaxRandomVelocityBias;
+    RandomVelocityScale=FVector2D(Dist(Mt),Dist(Mt))*MaxRandomVelocityScale;
 }
 
 void UOmniMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                            FActorComponentTickFunction* ThisTickFunction)
 {
     float clock=GetWorld()->GetTimeSeconds();
+    auto vel=GetOwner()->GetVelocity();
+    float speed=vel.Size();
     // rotation
     auto rot=GetOwner()->GetActorRotation();
     auto maxavdiff=MaxAngAccel*DeltaTime;
-    auto angdrive=FMath::Clamp(ReferenceAngVel - CurrentAngVel, -maxavdiff, maxavdiff);
+    float refangvel= ReferenceAngVel + RandomAngularVelBias + RandomAngularVelScale * speed;
+    auto angdrive=FMath::Clamp(refangvel - CurrentAngVel, -maxavdiff, maxavdiff);
     CurrentAngVel +=angdrive;
     auto yawcmd= FRotator(0,CurrentAngVel * DeltaTime,0);
     auto upright = FRotator(-rot.Pitch*UprightCoeff, 0, -rot.Roll*UprightCoeff);
@@ -38,8 +45,9 @@ void UOmniMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
     auto combined = yawcmd + upright  + noise;
     GetOwner()->AddActorLocalRotation(combined);
     // velocity
-    auto forward= GetOwner()->GetActorForwardVector()*ReferenceVel.X/MaxWalkSpeed;
-    auto right = GetOwner()->GetActorRightVector()*ReferenceVel.Y/MaxWalkSpeed;
+    FVector2D refvel = ReferenceVel + RandomVelocityBias + RandomVelocityScale*speed;
+    auto forward= GetOwner()->GetActorForwardVector()*refvel.X/MaxWalkSpeed;
+    auto right = GetOwner()->GetActorRightVector()*refvel.Y/MaxWalkSpeed;
     const FVector driftVector(Dist(Mt),Dist(Mt),Dist(Mt));
     DriftState=FMath::LerpStable(DriftState, driftVector, DriftingCoeff);
     DriftState.Normalize();

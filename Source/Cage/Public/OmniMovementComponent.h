@@ -42,18 +42,18 @@ public:
 	float CurrentAngVel;
 	UPROPERTY(EditAnywhere)
 	float MaxAngAccel=60;      // max anngular accel [deg/s^2]
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Category=Disturbance)
 	FVector DriftState;   // Current normalized drifting velocity vector. 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category=Disturbance)
 	float DriftingCoeff;  // 0...1; 0:=Keep current drifting velocity, 1:=Update drifting velocity with random values 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category=Disturbance)
 	float DriftMaxVel;    // Maximum velocity of random drifting velocity input [cm/s]
 	/**
 	 * @brief Hardness of upright enforcer. Upright pose is enforced bt applying a rotation every tick. This rotation is
 	 *        multiplied with UprightCoeff before applying it to the actor.
 	 *    (0: No Upright enforcing applied,  1: Up vector fully maintained every tick) 
 	 */
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category=Disturbance)
 	float UprightCoeff;
 	UPROPERTY(EditAnywhere, Category=Disturbance)
 	float PoseDisturbRoll;
@@ -61,8 +61,21 @@ public:
 	float PoseDisturbPitch;
 	UPROPERTY(EditAnywhere, Category=Disturbance)
 	float PoseDisturbYaw;
+	UPROPERTY(EditAnywhere, Category=Disturbance)
+	float MaxRandomAngularVelocityBias;   // Maximum angular velocity of randomly initialized bias [deg/s] 
+	UPROPERTY(EditAnywhere, Category=Disturbance)
+	float MaxRandomAngularVelocityScale;  // Maximum angular velocity command error proportional to linear velocity
+	UPROPERTY(EditAnywhere, Category=Disturbance)
+	FVector2D MaxRandomVelocityBias;      // Maximum linear velocity of randomly initialized bias [cm/s]
+	UPROPERTY(EditAnywhere, Category=Disturbance)
+	FVector2D MaxRandomVelocityScale;     // Maximum linear velocity command error proportional to linear velocity
+	
 	protected:
 	std::random_device Rd;
 	std::mt19937 Mt;
 	std::normal_distribution<> Dist;
+	float RandomAngularVelBias;
+	float RandomAngularVelScale;
+	FVector2D RandomVelocityBias;
+	FVector2D RandomVelocityScale;
 };
