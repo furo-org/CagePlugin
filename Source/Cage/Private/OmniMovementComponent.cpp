@@ -16,36 +16,27 @@ void UOmniMovementComponent::BeginPlay()
     SetMovementMode(EMovementMode::MOVE_Walking);
     Mt=std::mt19937(Rd());
     Dist=std::normal_distribution<>(0.,1.);
+    CurrentAngVel=0;
 }
 
 void UOmniMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
                                            FActorComponentTickFunction* ThisTickFunction)
 {
     float clock=GetWorld()->GetTimeSeconds();
-#if 0
-    float cycle1=sin(CyclicDisturbHz*clock*PI*2);
-    float cycle2=sin(CyclicDisturbHz*clock*PI*2*2);
-    float cycle3=sin(CyclicDisturbHz*clock*PI*2*3);
-    float cycleComp= CyclicDisturbAmp1*cycle1 + CyclicDisturbAmp2*cycle2 + CyclicDisturbAmp3*cycle3;    
-    auto cyclicDisturb = FRotator(cycleComp, cycleComp, cycleComp);
-#endif
     // rotation
     auto rot=GetOwner()->GetActorRotation();
-    auto yawcmd= FRotator(0,ReferenceAngVel * DeltaTime,0);
+    auto maxavdiff=MaxAngAccel*DeltaTime;
+    auto angdrive=FMath::Clamp(ReferenceAngVel - CurrentAngVel, -maxavdiff, maxavdiff);
+    CurrentAngVel +=angdrive;
+    auto yawcmd= FRotator(0,CurrentAngVel * DeltaTime,0);
     auto upright = FRotator(-rot.Pitch*UprightCoeff, 0, -rot.Roll*UprightCoeff);
     auto noise = FRotator(
     Dist(Mt)*PoseDisturbPitch*DeltaTime,
     Dist(Mt)*PoseDisturbYaw*DeltaTime,
     Dist(Mt)*PoseDisturbRoll*DeltaTime);
         
-    auto combined = yawcmd + upright  + noise /*+ cyclicDisturb*/;
+    auto combined = yawcmd + upright  + noise;
     GetOwner()->AddActorLocalRotation(combined);
-#if 0
-    static int seq=0;
-    seq+=1;
-    if(seq%50==0)
-        UE_LOG(LogTemp, Warning, TEXT("rotvel: %s"),*combined.ToString());
-#endif
     // velocity
     auto forward= GetOwner()->GetActorForwardVector()*ReferenceVel.X/MaxWalkSpeed;
     auto right = GetOwner()->GetActorRightVector()*ReferenceVel.Y/MaxWalkSpeed;

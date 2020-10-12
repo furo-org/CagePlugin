@@ -39,6 +39,10 @@ public:
 	UPROPERTY(BlueprintReadOnly)
 	float ReferenceAngVel;
 	UPROPERTY(BlueprintReadOnly)
+	float CurrentAngVel;
+	UPROPERTY(EditAnywhere)
+	float MaxAngAccel=60;      // max anngular accel [deg/s^2]
+	UPROPERTY(BlueprintReadOnly)
 	FVector DriftState;   // Current normalized drifting velocity vector. 
 	UPROPERTY(EditAnywhere)
 	float DriftingCoeff;  // 0...1; 0:=Keep current drifting velocity, 1:=Update drifting velocity with random values 
@@ -57,20 +61,6 @@ public:
 	float PoseDisturbPitch;
 	UPROPERTY(EditAnywhere, Category=Disturbance)
 	float PoseDisturbYaw;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
-	float CyclicDisturbHz=2.0;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
-	float CyclicDisturbAmp1=0.2;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
-	float CyclicDisturbAmp2=0.03;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
-	float CyclicDisturbAmp3=0.007;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
-	float CyclicDisturbRoll=1;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
-	float CyclicDisturbPitch=.7;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
-	float CyclicDisturbYaw=.3;
 	protected:
 	std::random_device Rd;
 	std::mt19937 Mt;
