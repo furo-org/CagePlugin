@@ -55,6 +55,7 @@ public:
 protected:
 	class FImpl;
 	FImpl *D = nullptr;
+	USceneComponent *BaseComp=nullptr;
 };
 
 inline bool JsonObjectToFString(TSharedRef<FJsonObject> Json, FString &StringOut)

@@ -36,6 +36,22 @@ void UActorCommMgr::BeginPlay()
 	D=new FImpl();
 	UE_LOG(LogTemp, Warning, TEXT("ActorCommMgr: BeginPlay"));
 	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &UActorCommMgr::Initialize);
+	for(auto *c:GetOwner()->GetComponents())
+	{
+		if(Cast<USkeletalMeshComponent>(c))
+		{
+			BaseComp=Cast<USceneComponent>(c);
+		}
+	}
+	if(!BaseComp)
+	{
+		BaseComp=GetOwner()->GetRootComponent();
+	}
+	ensure(BaseComp!=nullptr);
+	if(BaseSocket!=NAME_None && !BaseComp->DoesSocketExist(BaseSocket))
+	{
+		UE_LOG(LogTemp,Warning,TEXT("[%1:%2] : BaseSocket[%3] is not found"),*GetOwner()->GetName(), *GetName(), *BaseSocket.ToString());
+	}
 }
 
 void UActorCommMgr::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -187,11 +203,7 @@ void UActorCommMgr::PostPhysicsTick(float DeltaTime, ELevelTick TickType,
 
 FTransform UActorCommMgr::GetBaseTransform()
 {
-    if(!BaseSocket.IsNone() && !GetOwner()->GetRootComponent()->DoesSocketExist(BaseSocket))
-    {
-	    UE_LOG(LogTemp, Error, TEXT("UActorCommMgr[%s]::GetBaseTransform: No base socket named [%s] found"),*BaseSocket.ToString());
-    }
-    return GetOwner()->GetRootComponent()->GetSocketTransform(BaseSocket);
+    return BaseComp->GetSocketTransform(BaseSocket);
 }
 
 bool UActorCommMgr::GetMetadata(UActorCommMgr* CommMgr, TSharedRef<FJsonObject> MetaOut)
