@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ChildActorComponent.h"
-#include "ActorCommMgr.h"
+#include "Comm/ActorCommMgr.h"
 #include "SensorActorMount.generated.h"
 /**
  *   Child Actor Component with communication capability with ActorCommMgr Component 

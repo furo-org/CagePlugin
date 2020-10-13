@@ -10,7 +10,7 @@
 #include "Engine/Public/TimerManager.h"
 #include "JsonUtilities/Public/JsonObjectConverter.h"
 #include "EngineUtils.h"
-#include "CommActor.h"
+#include "Comm/CommActor.h"
 #include<sstream>
 #include<string>
 #include "Comm/Types.h"

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "ActorCommMgr.h"
+#include "Comm/ActorCommMgr.h"
 #include "CoreMinimal.h"
 
 #include <random>
