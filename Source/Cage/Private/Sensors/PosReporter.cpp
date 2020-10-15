@@ -4,9 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#include "PosReporter.h"
+#include "Comm/PosReporter.h"
 #include "Comm/Types.h"
-#include "JsonUtilities/Public/JsonObjectConverter.h"
+#include "JsonObjectConverter.h"
 #include "GeoReference.h"
 #include "EngineUtils.h"
 

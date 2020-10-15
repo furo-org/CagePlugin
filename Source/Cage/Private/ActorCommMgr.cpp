@@ -5,11 +5,11 @@
 * 
 */
 
-#include "ActorCommMgr.h"
+#include "Comm/ActorCommMgr.h"
 #include "EngineUtils.h"
-#include "CommActor.h"
+#include "Comm/CommActor.h"
 #include "JsonObjectConverter.h"
-#include "JsonSerializer.h"
+#include "Serialization/JsonSerializer.h"
 #include "Comm/Comm.h"
 
 class UActorCommMgr::FImpl{

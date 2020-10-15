@@ -17,7 +17,7 @@
 #include "Networking.h"
 #include "Components/ActorComponent.h"
 #include "Comm/Comm.h"
-#include "ActorCommMgrAPI.h"
+#include "Comm/ActorCommMgrAPI.h"
 #include <array>
 #include "ScannerIOProtocol.generated.h"
 

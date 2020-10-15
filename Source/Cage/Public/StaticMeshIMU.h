@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/StaticMeshComponent.h"
-#include "ActorCommMgr.h"
+#include "Comm/ActorCommMgr.h"
 #include "StaticMeshIMU.generated.h"
 
 

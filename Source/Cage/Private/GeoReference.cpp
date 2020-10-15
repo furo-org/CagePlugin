@@ -8,7 +8,7 @@
 #include <array>
 
 
-#include "ActorCommMgr.h"
+#include "Comm/ActorCommMgr.h"
 #include "JsonObjectConverter.h"
 #include "MathUtil.h"
 
