@@ -208,7 +208,7 @@ void ALidar::Tick(float dt)
 		float G = 1. / (1 + 2 * Lambda);
 		// retro
 		float F_r = retro;
-		float f_specular = D * G * F_s / (4 * VN_sq);
+		float f_specular = D * G * F_s / 4;
 		float d_retro = 1/*retro reflective*/ * (roughness_4 - 1) + 1;
 		float D_retro= roughness_4 / (PI*d_retro*d_retro);
 		float f_retro = D_retro * (1 - F_s)*F_r;
