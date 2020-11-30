@@ -11,7 +11,7 @@
 #include <array>
 #include <stdbool.h>
 
-#include "GeometryCollectionSimulationCoreTypes.h"
+//#include "GeometryCollectionSimulationCoreTypes.h"
 #include "Comm/Comm.h"
 
 #include "GeoReference.generated.h"

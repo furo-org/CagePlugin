@@ -8,58 +8,14 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Comm/Comm.h"
 #include "TickUtils.h"
+#include "ActorCommMgrAPI.h"
 #include "ActorCommMgr.generated.h"
 
 
-UINTERFACE()
-class UActorCommClient : public UInterface {
-  GENERATED_BODY()
-public:
-};
-
-class UActorCommMgr;
-
-class IActorCommClient
-{
-  GENERATED_BODY()
-public:
-	virtual void CommRecv(const float DeltaTime, const TArray<TSharedPtr<FJsonObject>> &RcvJson){};
-	virtual TSharedPtr<FJsonObject> CommSend(const float DeltaTime, UActorCommMgr *CommMgr){return TSharedPtr<FJsonObject>();};
-};
-
-UINTERFACE()
-class UActorCommListener : public UInterface {
-	GENERATED_BODY()
-public:
-};
-
-class IActorCommListener
-{
-	GENERATED_BODY()
-public:
-	virtual void RemoteAddressChanged(const FString &Address)=0;
-};
-
-UINTERFACE()
-class UActorCommMetaSender : public UInterface {
-	GENERATED_BODY()
-public:
-};
-
-class UActorCommMgr;
-
-class IActorCommMetaSender
-{
-	GENERATED_BODY()
-public:
-	virtual bool GetMetadata(UActorCommMgr *CommMgr, TSharedRef<FJsonObject> MetaOut)=0;
-};
-
-
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class CAGE_API UActorCommMgr : public UActorComponent, public IPrePhysicsTickable, public IPostPhysicsTickable
+class CAGE_API UActorCommMgr : public UActorComponent, public IPrePhysicsTickable, public IPostPhysicsTickable,
+ public IActorCommClient, public IActorCommListener, public IActorCommMetaSender
 {
 	GENERATED_BODY()
 
@@ -67,30 +23,39 @@ public:
 	// Sets default values for this component's properties
 	UActorCommMgr();
 
-protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
-	void InitializeMetadata();
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+protected:
+	void Initialize();
+	bool CollectMetadata();
 
 public:	
+	// IPrePhysicsTickable
 	virtual void PrePhysicsTick(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	// IPostPhysicsTickable
 	virtual void PostPhysicsTick(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	// IActorCommMetaSender
+	virtual bool GetMetadata(UActorCommMgr* CommMgr, TSharedRef<FJsonObject> MetaOut) override;
+	// IActorCommListener
+	virtual void RemoteAddressChanged(const FString& Address) override;
 
 	// Remote IP Address which sends 'ActorCmd' to this actor
 	UPROPERTY(BlueprintReadOnly, Category = "SimVehicle")
 	FString RemoteAddress="255.255.255.255";
 
-	// Name of Socket which defines Base transformation
+	// Name of Socket which defines Base transformation (ROS base_link). Transform of root component is used if None.
 	UPROPERTY(EditAnywhere, Category="Setup")
 	FName BaseSocket;
 	
 	FTransform GetBaseTransform();  // Get world to base transform
 	
 protected:
-	CommEndpointIO<FSimpleMessage> Comm;
-	TArray<IActorCommClient*> CommClients;
-	TArray<IActorCommListener*> CommListeners;
-	FString ActorMetadata;
+	class FImpl;
+	FImpl *D = nullptr;
+	USceneComponent *BaseComp=nullptr;
 };
 
 inline bool JsonObjectToFString(TSharedRef<FJsonObject> Json, FString &StringOut)

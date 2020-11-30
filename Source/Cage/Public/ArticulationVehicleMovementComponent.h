@@ -7,7 +7,7 @@
 #pragma once
 
 #include "Comm/Comm.h"
-#include "ActorCommMgr.h"
+#include "Comm/ActorCommMgr.h"
 #include "GameFramework/MovementComponent.h"
 #include "ArticulationVehicleMovementComponent.generated.h"
 

@@ -27,7 +27,13 @@ Velodyne VLP-16 Actor.
 
 ### Cage/Vehicle/PuffinBP
 
-Mobile robot 'Puffin' Actor.
+Mobile robot 'Puffin' Actor. The Puffin Actor uses PhysX articulation to represent its physical bodies. The actor is moved by rotating two tires on it and resulting motion is simulated by PhysX engine.
+
+## Cage/Vehicle/Laikago/LaikagoBP
+
+Mobile robot 'laikago' Actor. The laikago Actor is a Character (like a player character) with a skeletal meshe and some animations. Its motion is not simulated by PhysX engine and it will not fall down.
+
+This actor uses meshes available at [unitree github repository](https://github.com/unitreerobotics/laikago_cad_model) released under [MPL2 license](https://github.com/unitreerobotics/laikago_cad_model/blob/53576b306af713aba203ab880e102dcbe119705d/LICENSE).
 
 ### Cage/MapUtils/Randomizer
 
