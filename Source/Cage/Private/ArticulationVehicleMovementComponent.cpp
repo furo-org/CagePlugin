@@ -24,7 +24,9 @@ void FWheelController::setVelocityTargetRpm(float rpm)
 float FWheelController::getCurrentRpm()
 {
     if (!ensure(Wheel))return 0;
-    return Wheel->Link.GetAngularVelocity()[0] * 60.;
+    auto vel=Wheel->Link.GetAngularVelocity()[0];
+    //UE_LOG(LogTemp, Warning, TEXT(" wheel vel: %f  = %f rpm"), vel, vel*60);
+    return  vel * 60.;
 }
 
 // ------------------------------------------------------------
@@ -36,15 +38,21 @@ void UArticulationVehicleMovementComponent::setVW(float v, float w)
     RefVel = v;
     RefOmega = w;
     w *= PI / 180.;
-    RefRpmRight = (RefVel + w * (TreadWidth)) / WheelR.Perimeter * 60. * -RotationDirection;
-    RefRpmLeft = (RefVel - w * (TreadWidth)) / WheelL.Perimeter * 60. * RotationDirection;
+    float r=( RefVel + w * (TreadWidth/2.)) / WheelR.Perimeter * 60. * -1;
+    float l= (RefVel - w * (TreadWidth/2.)) / WheelL.Perimeter * 60.;
+    setRPM(l*WheelReductionRatio,r*WheelReductionRatio);
 }
 
 void UArticulationVehicleMovementComponent::setRPM(float l, float r)
 {
     if (!IsReady)return;
+    UE_LOG(LogTemp, Warning, TEXT("SetRPM(%f,%f) "), l, r);
     RefRpmRight = r / WheelReductionRatio * RotationDirection;
     RefRpmLeft = l / WheelReductionRatio * RotationDirection;
+    if (!ensure(WheelL.Wheel != nullptr))return;
+    if (!ensure(WheelR.Wheel != nullptr))return;
+    WheelL.setVelocityTargetRpm(RefRpmLeft);
+    WheelR.setVelocityTargetRpm(RefRpmRight);
 }
 
 void UArticulationVehicleMovementComponent::FixupReferences()
@@ -152,12 +160,6 @@ void UArticulationVehicleMovementComponent::CommRecv(const float DeltaTime, cons
             setRPM(l, r);
         }
     }
-
-    if (!ensure(WheelL.Wheel != nullptr))return;
-    if (!ensure(WheelR.Wheel != nullptr))return;
-
-    WheelL.setVelocityTargetRpm(RefRpmLeft);
-    WheelR.setVelocityTargetRpm(RefRpmRight);
     //UE_LOG(LogTemp, Warning, TEXT("RefR: %f CurR: %f  RefL: %f CurL: %f"), RefRpmRight, CurRpmRight, RefRpmLeft, CurRpmLeft);
 }
 
