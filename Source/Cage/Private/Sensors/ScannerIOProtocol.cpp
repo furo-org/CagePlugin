@@ -119,7 +119,6 @@ void UScannerIOProtocolUDP::sendPacket()
   FBufferArchive pack;
   short count = Ranges.Num();
   pack << count;
-  //short ptsps = Rpm / 60. * 360 / StepHAngle;
   short ptsps = 360. / Scanner->GetStepHAngle() / Scanner->GetFrameInterval();
   pack << ptsps;
   for (int i = 0, ec = count; i != ec; ++i) {
@@ -174,6 +173,7 @@ void UScannerIOProtocolVelodyne::sendPacket()
   if (Socket != nullptr) {
     // check if broadcasting is allowed or not.
     if (CVarBroadcast.GetValueOnGameThread() == 0 && RemoteIsBroadcast) {
+      PreparePacket();
       return;
     }
 
@@ -196,7 +196,6 @@ void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<float> &
 {
   size_t pos = 0;
   ensure(ranges.Num() == intensities.Num());
-  //uint8_t  intensity = 200;
   while (ranges.Num()-pos >= 16) {
     if (Rangedata.Num() == 0) {
       float yaw = dirs[pos].Yaw;
@@ -228,7 +227,7 @@ void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<float> &
 
     // Packet完成
     if (NDataBlocks >= 12) {
-      int32_t currentTime = Timestamp * 1000000; //GetWorld()->GetTimeSeconds() * 1000000;
+      int32_t currentTime = Timestamp * 1000000;
       uint8_t mode = 0x37;  // strongest
       uint8_t model = ModelID;
       Pack << currentTime;
@@ -236,27 +235,5 @@ void UScannerIOProtocolVelodyne::pushScan(TArray<float> &ranges, TArray<float> &
       Pack << model;
       sendPacket();
     }
-    //intensity++; // 同一フレームで処理したパケットをintensityを流用してマークする
   }
 }
-#if 0
-void UScannerIOProtocolVelodyne::pushRange(TArray<uint16_t> &rangedata, TArray<float> & ranges, size_t pos)
-{
-  rangedata.Add(ranges[pos +  0] * 1 / 2);  // mm->2mm
-  rangedata.Add(ranges[pos +  8] * 1 / 2);
-  rangedata.Add(ranges[pos +  1] * 1 / 2);
-  rangedata.Add(ranges[pos +  9] * 1 / 2);
-  rangedata.Add(ranges[pos +  2] * 1 / 2);
-  rangedata.Add(ranges[pos + 10] * 1 / 2);
-  rangedata.Add(ranges[pos +  3] * 1 / 2);
-  rangedata.Add(ranges[pos + 11] * 1 / 2);
-  rangedata.Add(ranges[pos +  4] * 1 / 2);
-  rangedata.Add(ranges[pos + 12] * 1 / 2);
-  rangedata.Add(ranges[pos +  5] * 1 / 2);
-  rangedata.Add(ranges[pos + 13] * 1 / 2);
-  rangedata.Add(ranges[pos +  6] * 1 / 2);
-  rangedata.Add(ranges[pos + 14] * 1 / 2);
-  rangedata.Add(ranges[pos +  7] * 1 / 2);
-  rangedata.Add(ranges[pos + 15] * 1 / 2);
-}
-#endif
