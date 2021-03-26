@@ -46,7 +46,7 @@ void UArticulationVehicleMovementComponent::setVW(float v, float w)
 void UArticulationVehicleMovementComponent::setRPM(float l, float r)
 {
     if (!IsReady)return;
-    UE_LOG(LogTemp, Warning, TEXT("SetRPM(%f,%f) "), l, r);
+    //UE_LOG(LogTemp, Warning, TEXT("SetRPM(%f,%f) "), l, r);
     RefRpmRight = r / WheelReductionRatio * RotationDirection;
     RefRpmLeft = l / WheelReductionRatio * RotationDirection;
     if (!ensure(WheelL.Wheel != nullptr))return;
