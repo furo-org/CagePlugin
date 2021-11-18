@@ -17,10 +17,7 @@ void UOmniMovementComponent::BeginPlay()
     Mt=std::mt19937(Rd());
     Dist=std::normal_distribution<>(0.,1.);
     CurrentAngVel=0;
-    RandomAngularVelBias=Dist(Mt)*MaxRandomAngularVelocityBias;
-    RandomAngularVelScale=Dist(Mt)*MaxRandomAngularVelocityScale;
-    RandomVelocityBias=FVector2D(Dist(Mt),Dist(Mt))*MaxRandomVelocityBias;
-    RandomVelocityScale=FVector2D(Dist(Mt),Dist(Mt))*MaxRandomVelocityScale;
+    RegenerateBiasParams();
 }
 
 void UOmniMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
@@ -28,7 +25,8 @@ void UOmniMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 {
     float clock=GetWorld()->GetTimeSeconds();
     auto vel=GetOwner()->GetVelocity();
-    float speed=vel.Size();
+    //float speed=vel.Size();
+    float speed=ReferenceVel.Size();
     // rotation
     auto rot=GetOwner()->GetActorRotation();
     auto maxavdiff=MaxAngAccel*DeltaTime;
@@ -90,4 +88,12 @@ void UOmniMovementComponent::SetVW(FVector2D v, float w)
 {
     ReferenceVel=v;
     ReferenceAngVel=w;
+}
+
+void UOmniMovementComponent::RegenerateBiasParams()
+{
+    RandomAngularVelBias=Dist(Mt)*MaxRandomAngularVelocityBias;
+    RandomAngularVelScale=Dist(Mt)*MaxRandomAngularVelocityScale;
+    RandomVelocityBias=FVector2D(Dist(Mt),Dist(Mt))*MaxRandomVelocityBias;
+    RandomVelocityScale=FVector2D(Dist(Mt),Dist(Mt))*MaxRandomVelocityScale;
 }

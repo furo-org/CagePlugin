@@ -34,19 +34,22 @@ public:
 	UFUNCTION(BluePrintCallable, Category = "Movement")
       void SetVW(FVector2D v, float w); // Velocity (Fwd, Right) [cm/s], Angular velocity (CW)[rad/s]
 
+	UFUNCTION(BluePrintCallable, Category = "Disturbance")
+      void RegenerateBiasParams(); // Randomize RandomVelocityBias and RandomVelocityScale
+
 	UPROPERTY(BlueprintReadOnly)
 	FVector2D ReferenceVel;
 	UPROPERTY(BlueprintReadOnly)
 	float ReferenceAngVel;
 	UPROPERTY(BlueprintReadOnly)
 	float CurrentAngVel;
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float MaxAngAccel=60;      // max anngular accel [deg/s^2]
 	UPROPERTY(BlueprintReadOnly, Category=Disturbance)
 	FVector DriftState;   // Current normalized drifting velocity vector. 
-	UPROPERTY(EditAnywhere, Category=Disturbance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	float DriftingCoeff;  // 0...1; 0:=Keep current drifting velocity, 1:=Update drifting velocity with random values 
-	UPROPERTY(EditAnywhere, Category=Disturbance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	float DriftMaxVel;    // Maximum velocity of random drifting velocity input [cm/s]
 	/**
 	 * @brief Hardness of upright enforcer. Upright pose is enforced bt applying a rotation every tick. This rotation is
@@ -61,21 +64,26 @@ public:
 	float PoseDisturbPitch;
 	UPROPERTY(EditAnywhere, Category=Disturbance)
 	float PoseDisturbYaw;
-	UPROPERTY(EditAnywhere, Category=Disturbance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	float MaxRandomAngularVelocityBias;   // Maximum angular velocity of randomly initialized bias [deg/s] 
-	UPROPERTY(EditAnywhere, Category=Disturbance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	float MaxRandomAngularVelocityScale;  // Maximum angular velocity command error proportional to linear velocity
-	UPROPERTY(EditAnywhere, Category=Disturbance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	FVector2D MaxRandomVelocityBias;      // Maximum linear velocity of randomly initialized bias [cm/s]
-	UPROPERTY(EditAnywhere, Category=Disturbance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	FVector2D MaxRandomVelocityScale;     // Maximum linear velocity command error proportional to linear velocity
 	
 	protected:
 	std::random_device Rd;
 	std::mt19937 Mt;
 	std::normal_distribution<> Dist;
+	public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	float RandomAngularVelBias;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	float RandomAngularVelScale;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	FVector2D RandomVelocityBias;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Disturbance)
 	FVector2D RandomVelocityScale;
 };
