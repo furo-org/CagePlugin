@@ -32,6 +32,7 @@ public class Cage : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"HeadMountedDisplay",
+				"PhysicsCore",
 				"zmque",
 				"zmqLibrary"
 			}
